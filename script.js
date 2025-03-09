@@ -59,8 +59,13 @@ function addJob(jobData = null) {
 
     // Add job ID to current variation if not present
     if (!resumeData.variations[currentVariation].jobOrder.includes(jobId)) {
-        // Add to the end of the array instead of the beginning
-        resumeData.variations[currentVariation].jobOrder.push(jobId);
+        // Add to the beginning of the array for new jobs
+        if (!jobData) {
+            resumeData.variations[currentVariation].jobOrder.unshift(jobId);
+        } else {
+            // For existing jobs (during load), add to the end
+            resumeData.variations[currentVariation].jobOrder.push(jobId);
+        }
     }
 
     // Create job UI
@@ -77,9 +82,13 @@ function addJob(jobData = null) {
         updateResume();
     });
 
-    // Append to container instead of prepend
+    // Add to container - prepend for new jobs, append for existing ones
     const container = document.getElementById('jobsContainer');
-    container.appendChild(jobDiv);
+    if (!jobData) {
+        container.insertBefore(jobDiv, container.firstChild);
+    } else {
+        container.appendChild(jobDiv);
+    }
 
     // Add existing bullet points in reverse order to match the data structure
     const bulletContainer = jobDiv.querySelector('.bulletPointsContainer');
@@ -112,6 +121,8 @@ function addBulletPoint(containerOrButton, bulletData = null) {
         };
         // Add to beginning of job's bullet points array
         resumeData.jobs[jobId].bulletPoints.unshift(bulletId);
+        // Set visibility to true for new bullet points
+        resumeData.variations[currentVariation].selectedBullets[bulletId] = true;
     }
 
     // Create bullet point UI
@@ -276,14 +287,86 @@ function moveBullet(button, direction) {
 
 function duplicateBullet(button) {
     const bulletDiv = button.closest('.bullet-point');
-    const newBulletDiv = bulletDiv.cloneNode(true);
-    const newTextArea = newBulletDiv.querySelector('textarea');
-    newTextArea.value = '';
-    bulletDiv.parentElement.appendChild(newBulletDiv);
+    const jobDiv = bulletDiv.closest('.job');
+    const jobId = jobDiv.dataset.jobId;
+    const originalBulletId = bulletDiv.dataset.bulletId;
+
+    // Create new bullet point data
+    const newBulletId = generateId();
+    const originalBullet = resumeData.bulletPoints[originalBulletId];
+
+    // Copy the original bullet's text
+    resumeData.bulletPoints[newBulletId] = {
+        id: newBulletId,
+        text: originalBullet.text
+    };
+
+    // Insert the new bullet ID after the original one in the job's bulletPoints array
+    const job = resumeData.jobs[jobId];
+    const originalIndex = job.bulletPoints.indexOf(originalBulletId);
+    job.bulletPoints.splice(originalIndex + 1, 0, newBulletId);
+
+    // Copy the visibility state from the original bullet
+    resumeData.variations[currentVariation].selectedBullets[newBulletId] =
+        resumeData.variations[currentVariation].selectedBullets[originalBulletId] || false;
+
+    // Create and insert the new bullet point UI element
+    const template = document.getElementById('bullet-template');
+    const newBulletDiv = template.content.cloneNode(true).firstElementChild;
+    newBulletDiv.dataset.bulletId = newBulletId;
+
+    // Set up the new bullet point
+    const textArea = newBulletDiv.querySelector('textarea');
+    const checkbox = newBulletDiv.querySelector('input[type="checkbox"]');
+
+    textArea.value = originalBullet.text;
+    checkbox.checked = resumeData.variations[currentVariation].selectedBullets[newBulletId];
+
+    // Add event listeners
+    textArea.addEventListener('input', () => {
+        resumeData.bulletPoints[newBulletId].text = textArea.value;
+        autoResizeTextarea(textArea);
+        updateResume();
+    });
+
+    checkbox.addEventListener('change', () => {
+        resumeData.variations[currentVariation].selectedBullets[newBulletId] = checkbox.checked;
+        updateResume();
+    });
+
+    // Insert the new bullet point right after the original one
+    bulletDiv.insertAdjacentElement('afterend', newBulletDiv);
+
+    // Initial resize for the textarea
+    autoResizeTextarea(textArea);
+    updateResume();
 }
 
 function deleteBullet(button) {
-    button.parentElement.remove();
+    const bulletDiv = button.closest('.bullet-point');
+    const bulletId = bulletDiv.dataset.bulletId;
+    const jobDiv = bulletDiv.closest('.job');
+    const jobId = jobDiv.dataset.jobId;
+
+    // Remove bullet from job's bulletPoints array
+    const job = resumeData.jobs[jobId];
+    if (job) {
+        const index = job.bulletPoints.indexOf(bulletId);
+        if (index > -1) {
+            job.bulletPoints.splice(index, 1);
+        }
+    }
+
+    // Remove bullet from master list
+    delete resumeData.bulletPoints[bulletId];
+
+    // Remove bullet from selected bullets in all variations
+    Object.values(resumeData.variations).forEach(variation => {
+        delete variation.selectedBullets[bulletId];
+    });
+
+    // Remove from UI
+    bulletDiv.remove();
     updateResume();
 }
 
@@ -442,6 +525,18 @@ function initSidebarResize() {
 }
 
 function loadResume() {
+    // Check if required elements exist before proceeding
+    const variationSelect = document.getElementById('variationSelect');
+    const nameInput = document.getElementById('name');
+    const contactInput = document.getElementById('contact');
+    const bioTextarea = document.getElementById('bio');
+
+    if (!variationSelect || !nameInput || !contactInput || !bioTextarea) {
+        console.error('Required DOM elements not found. Retrying in 100ms...');
+        setTimeout(loadResume, 100);
+        return;
+    }
+
     // Initialize sidebar resize functionality
     initSidebarResize();
 
@@ -580,11 +675,41 @@ function saveResume() {
         });
 }
 
-function deleteJob(event) {
-    const jobDiv = event.target.closest('.job');
+function deleteJob(buttonOrEvent) {
+    const jobDiv = buttonOrEvent.target ?
+        buttonOrEvent.target.closest('.job') :
+        buttonOrEvent.closest('.job');
+
     if (jobDiv) {
+        const jobId = jobDiv.dataset.jobId;
+
+        // Remove job from all variations' jobOrder arrays
+        Object.values(resumeData.variations).forEach(variation => {
+            const index = variation.jobOrder.indexOf(jobId);
+            if (index > -1) {
+                variation.jobOrder.splice(index, 1);
+            }
+        });
+
+        // Remove all bullet points associated with this job
+        const job = resumeData.jobs[jobId];
+        if (job) {
+            job.bulletPoints.forEach(bulletId => {
+                // Remove bullet from master list
+                delete resumeData.bulletPoints[bulletId];
+                // Remove from selected bullets in all variations
+                Object.values(resumeData.variations).forEach(v => {
+                    delete v.selectedBullets[bulletId];
+                });
+            });
+        }
+
+        // Remove job from master list
+        delete resumeData.jobs[jobId];
+
+        // Remove from UI
         jobDiv.remove();
-        saveState();
+        updateResume();
     }
 }
 
@@ -594,3 +719,8 @@ function setupJobEventListeners(jobDiv) {
         deleteButton.addEventListener('click', deleteJob);
     }
 }
+
+// Ensure DOM is loaded before initializing
+document.addEventListener('DOMContentLoaded', function () {
+    loadResume();
+});
