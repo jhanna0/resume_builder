@@ -410,7 +410,41 @@ function updateResume() {
     });
 }
 
+function initSidebarResize() {
+    const sidebar = document.getElementById('sidebar');
+    const resizeHandle = document.querySelector('.sidebar-resize-wrapper');
+    let isResizing = false;
+    let startX;
+    let startWidth;
+
+    resizeHandle.addEventListener('mousedown', function (e) {
+        isResizing = true;
+        startX = e.pageX;
+        startWidth = sidebar.offsetWidth;
+        e.preventDefault(); // Prevent text selection
+    });
+
+    document.addEventListener('mousemove', function (e) {
+        if (!isResizing) return;
+
+        const width = startWidth + (e.pageX - startX);
+        if (width >= 360) { // Respect min-width
+            sidebar.style.width = width + 'px';
+        }
+
+        // Prevent text selection while resizing
+        e.preventDefault();
+    });
+
+    document.addEventListener('mouseup', function () {
+        isResizing = false;
+    });
+}
+
 function loadResume() {
+    // Initialize sidebar resize functionality
+    initSidebarResize();
+
     fetch('/api/resume')
         .then(res => res.json())
         .then(data => {
@@ -559,36 +593,4 @@ function setupJobEventListeners(jobDiv) {
     if (deleteButton) {
         deleteButton.addEventListener('click', deleteJob);
     }
-}
-
-function exportToPDF() {
-    // Get the resume content element
-    const resumeContent = document.getElementById('resumeContent');
-
-    // Get the current variation name and user's full name
-    const variationName = resumeData.variations[currentVariation].name;
-    const fullName = resumeData.name || 'Resume';
-
-    // Create filename: FullName-VariationName.pdf
-    const fileName = `${fullName.replace(/[^a-z0-9]/gi, '_')}-${variationName.replace(/[^a-z0-9]/gi, '_')}.pdf`;
-
-    // Configure PDF options
-    const opt = {
-        margin: [10, 10],
-        filename: fileName,
-        image: { type: 'jpeg', quality: 0.98 },
-        html2canvas: {
-            scale: 2,
-            useCORS: true,
-            letterRendering: true
-        },
-        jsPDF: {
-            unit: 'mm',
-            format: 'a4',
-            orientation: 'portrait'
-        }
-    };
-
-    // Generate PDF
-    html2pdf().set(opt).from(resumeContent).save();
 }

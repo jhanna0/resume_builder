@@ -7,8 +7,6 @@
     <title>Resume Builder</title>
     <!-- Inter font -->
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
-    <!-- HTML2PDF library -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <!-- 1) site.css for global styles -->
     <link rel="stylesheet" href="styles.css" />
     <!-- 2) sidebar.css for sidebar-only -->
@@ -18,8 +16,37 @@
 </head>
 
 <body onload="loadResume()">
-    <!-- We'll dynamically load the sidebar and resume sections -->
-    <div id="sidebar"></div>
+    <!-- Sidebar -->
+    <div id="sidebar">
+        <div class="sidebar-resize-wrapper"></div>
+        <h2>Resume Details</h2>
+
+        <div class="personal-info">
+            <div class="form-group">
+                <label for="name">Full Name</label>
+                <input type="text" id="name" placeholder="Your Name" oninput="updateResume()">
+            </div>
+
+            <div class="form-group">
+                <label for="contact">Contact Info</label>
+                <input type="text" id="contact" placeholder="Your Contact Info" oninput="updateResume()">
+            </div>
+
+            <div class="form-group">
+                <label for="bio">Bio</label>
+                <textarea id="bio" placeholder="Enter a short bio"
+                    oninput="autoResizeTextarea(this); updateResume()"></textarea>
+            </div>
+        </div>
+
+        <h2>Job List</h2>
+        <div class="jobs-section">
+            <button id="addJobBtn" onclick="addJob()">Add Job</button>
+            <div id="jobsContainer"></div>
+        </div>
+    </div>
+
+    <!-- Resume -->
     <div id="resume"></div>
 
     <!-- Templates -->
@@ -59,7 +86,7 @@
     </template>
 
     <script>
-        // Dynamically load the HTML fragments for sidebar & resume
+        // Dynamically load the resume section only
         function loadComponent(targetId, url) {
             fetch(url)
                 .then(resp => resp.text())
@@ -67,7 +94,6 @@
                 .catch(err => console.error(`Failed to load ${url}:`, err));
         }
 
-        loadComponent("sidebar", "sidebar.html");
         loadComponent("resume", "resume.html");
     </script>
 
