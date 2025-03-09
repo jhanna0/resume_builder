@@ -1,0 +1,306 @@
+{
+  "name": "Alex Morgan",
+  "contact": "alex.morgan@email.com | (555) 123-4567 | linkedin.com/in/alexmorgan",
+  "bio": "Senior software engineer with 8+ years of experience in full-stack development, distributed systems, and team leadership.",
+  "jobs": {
+    "job_1": {
+      "id": "job_1",
+      "title": "Senior Software Engineer at TechCorp",
+      "bulletPoints": [
+        "bullet_1_1",
+        "bullet_1_2",
+        "bullet_1_3",
+        "bullet_1_4",
+        "bullet_1_5",
+        "bullet_1_6"
+      ]
+    },
+    "job_2": {
+      "id": "job_2",
+      "title": "Full Stack Developer at DataFlow Systems",
+      "bulletPoints": [
+        "bullet_2_1",
+        "bullet_2_2",
+        "bullet_2_3",
+        "bullet_2_4",
+        "bullet_2_5"
+      ]
+    },
+    "job_3": {
+      "id": "job_3",
+      "title": "Software Engineer at CloudScale",
+      "bulletPoints": [
+        "bullet_3_1",
+        "bullet_3_2",
+        "bullet_3_3",
+        "bullet_3_4",
+        "bullet_3_5"
+      ]
+    },
+    "job_4": {
+      "id": "job_4",
+      "title": "Frontend Developer at UX Solutions",
+      "bulletPoints": [
+        "bullet_4_1",
+        "bullet_4_2",
+        "bullet_4_3",
+        "bullet_4_4"
+      ]
+    },
+    "job_5": {
+      "id": "job_5",
+      "title": "Backend Engineer at DataCore",
+      "bulletPoints": [
+        "bullet_5_1",
+        "bullet_5_2",
+        "bullet_5_3",
+        "bullet_5_4",
+        "bullet_5_5"
+      ]
+    },
+    "job_6": {
+      "id": "job_6",
+      "title": "DevOps Engineer at CloudNet",
+      "bulletPoints": [
+        "bullet_6_1",
+        "bullet_6_2",
+        "bullet_6_3",
+        "bullet_6_4"
+      ]
+    },
+    "job_7": {
+      "id": "job_7",
+      "title": "Systems Architect at Enterprise Solutions",
+      "bulletPoints": [
+        "bullet_7_1",
+        "bullet_7_2",
+        "bullet_7_3",
+        "bullet_7_4",
+        "bullet_7_5"
+      ]
+    }
+  },
+  "bulletPoints": {
+    "bullet_1_1": {
+      "id": "bullet_1_1",
+      "text": "Led a team of 8 engineers in developing a microservices-based e-commerce platform serving 2M+ daily users"
+    },
+    "bullet_1_2": {
+      "id": "bullet_1_2",
+      "text": "Reduced system latency by 40% through implementation of Redis caching and query optimization"
+    },
+    "bullet_1_3": {
+      "id": "bullet_1_3",
+      "text": "Architected and deployed Kubernetes clusters across multiple regions for high availability"
+    },
+    "bullet_1_4": {
+      "id": "bullet_1_4",
+      "text": "Implemented CI/CD pipelines reducing deployment time from 2 hours to 15 minutes"
+    },
+    "bullet_1_5": {
+      "id": "bullet_1_5",
+      "text": "Mentored 5 junior developers, leading to 3 promotions within the team"
+    },
+    "bullet_1_6": {
+      "id": "bullet_1_6",
+      "text": "Spearheaded adoption of TypeScript across frontend applications, reducing bugs by 30%"
+    },
+    "bullet_2_1": {
+      "id": "bullet_2_1",
+      "text": "Developed real-time data visualization dashboard using React and D3.js"
+    },
+    "bullet_2_2": {
+      "id": "bullet_2_2",
+      "text": "Implemented GraphQL API gateway consolidating multiple REST endpoints"
+    },
+    "bullet_2_3": {
+      "id": "bullet_2_3",
+      "text": "Built automated testing framework achieving 90% code coverage"
+    },
+    "bullet_2_4": {
+      "id": "bullet_2_4",
+      "text": "Optimized database queries reducing average response time by 60%"
+    },
+    "bullet_2_5": {
+      "id": "bullet_2_5",
+      "text": "Led migration from monolith to microservices architecture"
+    },
+    "bullet_3_1": {
+      "id": "bullet_3_1",
+      "text": "Designed and implemented cloud-native applications using AWS services"
+    },
+    "bullet_3_2": {
+      "id": "bullet_3_2",
+      "text": "Reduced infrastructure costs by 45% through optimization of cloud resources"
+    },
+    "bullet_3_3": {
+      "id": "bullet_3_3",
+      "text": "Implemented serverless architecture using AWS Lambda and API Gateway"
+    },
+    "bullet_3_4": {
+      "id": "bullet_3_4",
+      "text": "Created automated disaster recovery system with 99.99% uptime"
+    },
+    "bullet_3_5": {
+      "id": "bullet_3_5",
+      "text": "Developed event-driven architecture using Apache Kafka"
+    },
+    "bullet_4_1": {
+      "id": "bullet_4_1",
+      "text": "Built responsive web applications using React and Material-UI"
+    },
+    "bullet_4_2": {
+      "id": "bullet_4_2",
+      "text": "Improved application performance score from 65 to 95 on Lighthouse"
+    },
+    "bullet_4_3": {
+      "id": "bullet_4_3",
+      "text": "Implemented accessibility features achieving WCAG 2.1 AA compliance"
+    },
+    "bullet_4_4": {
+      "id": "bullet_4_4",
+      "text": "Developed reusable component library used across multiple projects"
+    },
+    "bullet_5_1": {
+      "id": "bullet_5_1",
+      "text": "Designed and implemented RESTful APIs serving 100K+ requests per minute"
+    },
+    "bullet_5_2": {
+      "id": "bullet_5_2",
+      "text": "Optimized MongoDB queries improving response times by 70%"
+    },
+    "bullet_5_3": {
+      "id": "bullet_5_3",
+      "text": "Implemented rate limiting and caching layers for API endpoints"
+    },
+    "bullet_5_4": {
+      "id": "bullet_5_4",
+      "text": "Developed data pipeline processing 5TB of daily user analytics"
+    },
+    "bullet_5_5": {
+      "id": "bullet_5_5",
+      "text": "Created automated database backup and recovery system"
+    },
+    "bullet_6_1": {
+      "id": "bullet_6_1",
+      "text": "Managed Kubernetes clusters across multiple cloud providers"
+    },
+    "bullet_6_2": {
+      "id": "bullet_6_2",
+      "text": "Implemented infrastructure as code using Terraform and Ansible"
+    },
+    "bullet_6_3": {
+      "id": "bullet_6_3",
+      "text": "Reduced deployment failures by 80% through automated testing"
+    },
+    "bullet_6_4": {
+      "id": "bullet_6_4",
+      "text": "Set up monitoring and alerting using Prometheus and Grafana"
+    },
+    "bullet_7_1": {
+      "id": "bullet_7_1",
+      "text": "Designed system architecture handling 1M+ concurrent users"
+    },
+    "bullet_7_2": {
+      "id": "bullet_7_2",
+      "text": "Led migration of legacy systems to modern cloud architecture"
+    },
+    "bullet_7_3": {
+      "id": "bullet_7_3",
+      "text": "Implemented zero-downtime deployment strategy"
+    },
+    "bullet_7_4": {
+      "id": "bullet_7_4",
+      "text": "Designed scalable data architecture using Apache Cassandra"
+    },
+    "bullet_7_5": {
+      "id": "bullet_7_5",
+      "text": "Created disaster recovery plan reducing RTO to under 1 hour"
+    }
+  },
+  "variations": {
+    "default": {
+      "name": "Full Stack",
+      "jobOrder": [
+        "job_1",
+        "job_2",
+        "job_3",
+        "job_4",
+        "job_5",
+        "job_6",
+        "job_7"
+      ],
+      "selectedBullets": {
+        "bullet_1_1": true,
+        "bullet_1_2": true,
+        "bullet_1_3": true,
+        "bullet_1_4": true,
+        "bullet_2_1": true,
+        "bullet_2_2": true,
+        "bullet_2_3": true,
+        "bullet_3_1": true,
+        "bullet_3_2": true,
+        "bullet_4_1": true,
+        "bullet_4_2": true,
+        "bullet_5_1": true,
+        "bullet_5_2": true,
+        "bullet_6_1": true,
+        "bullet_7_1": true
+      }
+    },
+    "frontend": {
+      "name": "Frontend Focus",
+      "jobOrder": [
+        "job_4",
+        "job_1",
+        "job_2"
+      ],
+      "selectedBullets": {
+        "bullet_4_1": true,
+        "bullet_4_2": true,
+        "bullet_4_3": true,
+        "bullet_4_4": true,
+        "bullet_1_6": false,
+        "bullet_2_1": true
+      }
+    },
+    "backend": {
+      "name": "Backend Focus",
+      "jobOrder": [
+        "job_5",
+        "job_3",
+        "job_1",
+        "job_7"
+      ],
+      "selectedBullets": {
+        "bullet_5_1": true,
+        "bullet_5_2": true,
+        "bullet_5_3": true,
+        "bullet_3_1": true,
+        "bullet_3_2": true,
+        "bullet_1_2": true,
+        "bullet_7_1": true,
+        "bullet_7_4": true
+      }
+    },
+    "devops": {
+      "name": "DevOps Focus",
+      "jobOrder": [
+        "job_6",
+        "job_1",
+        "job_3",
+        "job_7"
+      ],
+      "selectedBullets": {
+        "bullet_6_1": true,
+        "bullet_6_2": true,
+        "bullet_6_3": true,
+        "bullet_6_4": true,
+        "bullet_1_3": true,
+        "bullet_1_4": true,
+        "bullet_3_3": true,
+        "bullet_7_3": true
+      }
+    }
+  }
+}

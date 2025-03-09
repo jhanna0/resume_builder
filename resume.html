@@ -1,0 +1,24 @@
+<div class="resume-container">
+    <div class="resume-toolbar">
+        <div class="resume-toolbar-left">
+            <h2>Resume Preview</h2>
+            <span class="variant-name"></span>
+        </div>
+        <div class="resume-toolbar-right">
+            <div class="variation-controls">
+                <label>Variation:</label>
+                <div class="variation-selector">
+                    <select id="variationSelect" onchange="loadVariation()">
+                        <option value="default">Default</option>
+                    </select>
+                    <button id="newVariationBtn" onclick="createNewVariation()" title="Create New Variation">+</button>
+                </div>
+            </div>
+            <button onclick="exportToPDF()" title="Export as PDF" class="primary">Export PDF</button>
+            <button onclick="saveResume()" class="primary">Save Resume</button>
+        </div>
+    </div>
+    <div id="resume">
+        <div id="resumeContent"></div>
+    </div>
+</div>

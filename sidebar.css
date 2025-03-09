@@ -1,0 +1,315 @@
+/* Sidebar */
+#sidebar {
+    min-width: 360px;
+    background: white;
+    height: 100vh;
+    overflow-y: auto;
+    border-right: 1px solid var(--neutral-200);
+    scroll-behavior: smooth;
+}
+
+/* Scrollbar Styling */
+#sidebar::-webkit-scrollbar {
+    width: 8px;
+}
+
+#sidebar::-webkit-scrollbar-track {
+    background: var(--neutral-50);
+}
+
+#sidebar::-webkit-scrollbar-thumb {
+    background: var(--neutral-300);
+    border-radius: 4px;
+}
+
+#sidebar::-webkit-scrollbar-thumb:hover {
+    background: var(--neutral-400);
+}
+
+/* Header Section */
+#sidebar h2 {
+    margin: 0;
+    padding: var(--space-6);
+    font-size: 1.25rem;
+    color: var(--neutral-800);
+    border-bottom: 1px solid var(--neutral-200);
+    background: white;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+}
+
+/* Personal Info Section */
+.personal-info {
+    padding: var(--space-6);
+    background: white;
+    border-bottom: 1px solid var(--neutral-200);
+}
+
+/* Form Groups */
+.form-group {
+    margin-bottom: var(--space-5);
+}
+
+.form-group:last-child {
+    margin-bottom: 0;
+}
+
+/* Labels */
+label {
+    display: block;
+    margin-bottom: var(--space-2);
+    color: var(--neutral-700);
+    font-weight: 500;
+    font-size: 0.95rem;
+}
+
+/* Inputs and Textareas */
+input,
+textarea {
+    width: 100%;
+    padding: 12px;
+    border: 1px solid #dee2e6;
+    border-radius: 6px;
+    font-size: 15px;
+    line-height: 1.5;
+    transition: all 0.2s;
+    box-sizing: border-box;
+    background: #fff;
+    color: #2c3e50;
+}
+
+input:focus,
+textarea:focus {
+    border-color: var(--primary);
+    outline: none;
+}
+
+textarea {
+    min-height: 80px;
+    max-height: 300px;
+    resize: none;
+    overflow-y: hidden;
+}
+
+/* Jobs Section */
+.jobs-section {
+    padding: var(--space-6);
+    /* padding-top: 0; */
+    background: white;
+    border-bottom: 1px solid var(--neutral-200);
+}
+
+/* Add Job Button */
+#addJobBtn {
+    width: 100%;
+    margin: var(--space-4) 0;
+    padding: var(--space-3);
+    background: var(--primary);
+    font-size: 15px;
+    font-weight: 500;
+    transition: all 0.2s;
+}
+
+#addJobBtn:hover {
+    background: var(--primary-dark);
+    /* transform: translateY(-1px); */
+}
+
+/* Job Styles */
+.job {
+    background: white;
+    border: 1px solid var(--neutral-200);
+    border-radius: 8px;
+    margin-bottom: var(--space-4);
+    padding: var(--space-4);
+    transition: all 0.2s;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.job:hover {
+    border-color: var(--neutral-300);
+    box-shadow: var(--shadow-md);
+}
+
+/* Job Header */
+.job-header {
+    margin: calc(var(--space-4) * -1);
+    margin-bottom: var(--space-1);
+    padding: var(--space-4);
+    background: white;
+    border-radius: 8px 8px 0 0;
+}
+
+/* Job Title Input */
+.job-title {
+    width: 100%;
+    font-size: 16px;
+    font-weight: 500;
+    padding: var(--space-3);
+    border: 1px solid var(--neutral-200);
+    border-radius: 6px;
+    background: white;
+    transition: all 0.2s;
+    box-sizing: border-box;
+}
+
+.job-title:hover {
+    border-color: var(--neutral-300);
+}
+
+.job-title:focus {
+    border-color: var(--primary);
+    outline: none;
+}
+
+/* Job Content */
+.job-content {
+    padding: 0;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+/* Job controls and bullet points */
+.job-controls {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    margin-bottom: var(--space-4);
+}
+
+.add-bullet {
+    flex: 1;
+    justify-content: center;
+}
+
+.bulletPointsContainer {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+}
+
+.bullet-point {
+    display: flex;
+    flex-direction: column;
+    border: 1px solid var(--neutral-200);
+    border-radius: 6px;
+    background: var(--neutral-50);
+    transition: all 0.2s;
+}
+
+.bullet-point textarea {
+    width: 100%;
+    border: none;
+    border-bottom: 1px solid var(--neutral-200);
+    border-radius: 6px 6px 0 0;
+    resize: vertical;
+    min-height: 38px;
+    padding: var(--space-3);
+    background: white;
+    box-sizing: border-box;
+}
+
+.bullet-point textarea:focus {
+    outline: none;
+}
+
+.bullet-point:has(textarea:focus) {
+    border-color: var(--primary);
+}
+
+.bullet-controls {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding: var(--space-2) var(--space-3);
+    background: var(--neutral-50);
+    border-radius: 0 0 6px 6px;
+}
+
+.bullet-controls input[type="checkbox"] {
+    margin: 0;
+    width: 16px;
+    height: 16px;
+}
+
+.bullet-controls .button-group {
+    display: flex;
+    gap: var(--space-2);
+    margin-left: auto;
+}
+
+.bullet-controls button {
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    background: var(--neutral-100);
+    color: var(--neutral-600);
+    border: 1px solid var(--neutral-200);
+    border-radius: 4px;
+}
+
+.bullet-controls button:hover {
+    background: var(--neutral-200);
+    color: var(--neutral-700);
+    transform: none;
+}
+
+.bullet-controls button:last-child {
+    background: var(--danger-light);
+    color: var(--danger);
+    border-color: var(--danger-light);
+}
+
+.bullet-controls button:last-child:hover {
+    background: color-mix(in srgb, var(--danger-light) 80%, var(--danger));
+}
+
+/* Move Buttons */
+.move-buttons {
+    display: flex;
+    gap: var(--space-1);
+}
+
+.move-buttons button {
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    background: var(--neutral-100);
+    color: var(--neutral-600);
+    border: 1px solid var(--neutral-200);
+    border-radius: 4px;
+}
+
+.move-buttons button:hover {
+    background: var(--neutral-200);
+    color: var(--neutral-700);
+}
+
+/* Delete Job Button */
+.delete-job {
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    background: var(--danger-light);
+    color: var(--danger);
+    border: 1px solid var(--danger-light);
+    border-radius: 4px;
+}
+
+.delete-job:hover {
+    background: color-mix(in srgb, var(--danger-light) 80%, var(--danger));
+}

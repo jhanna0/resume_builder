@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Resume Builder</title>
+    <!-- Inter font -->
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
+    <!-- HTML2PDF library -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <!-- 1) site.css for global styles -->
+    <link rel="stylesheet" href="styles.css" />
+    <!-- 2) sidebar.css for sidebar-only -->
+    <link rel="stylesheet" href="sidebar.css" />
+    <!-- 3) resume.css for resume-only -->
+    <link rel="stylesheet" href="resume.css" />
+</head>
+
+<body onload="loadResume()">
+    <!-- We'll dynamically load the sidebar and resume sections -->
+    <div id="sidebar"></div>
+    <div id="resume"></div>
+
+    <!-- Templates -->
+    <template id="job-template">
+        <div class="job">
+            <div class="job-header">
+                <input type="text" placeholder="Job Title" class="job-title" oninput="updateResume()">
+            </div>
+            <div class="job-content">
+                <div class="job-controls">
+                    <button onclick="addBulletPoint(this)" class="add-bullet" title="Add Bullet">Add Bullet
+                        Point</button>
+                    <div class="move-buttons">
+                        <button onclick="moveJob(this, 'up')" title="Move Up">↑</button>
+                        <button onclick="moveJob(this, 'down')" title="Move Down">↓</button>
+                    </div>
+                    <button onclick="deleteJob(this)" class="delete-job" title="Delete Job">×</button>
+                </div>
+                <div class="bulletPointsContainer"></div>
+            </div>
+        </div>
+    </template>
+
+    <template id="bullet-template">
+        <div class="bullet-point">
+            <textarea placeholder="Bullet Point" oninput="updateResume()"></textarea>
+            <div class="bullet-controls">
+                <input type="checkbox" onchange="updateResume()">
+                <div class="button-group">
+                    <button onclick="moveBullet(this, 'up')" title="Move Up">↑</button>
+                    <button onclick="moveBullet(this, 'down')" title="Move Down">↓</button>
+                    <button onclick="duplicateBullet(this)" title="Copy">⎘</button>
+                    <button onclick="deleteBullet(this)" title="Delete">×</button>
+                </div>
+            </div>
+        </div>
+    </template>
+
+    <script>
+        // Dynamically load the HTML fragments for sidebar & resume
+        function loadComponent(targetId, url) {
+            fetch(url)
+                .then(resp => resp.text())
+                .then(html => (document.getElementById(targetId).innerHTML = html))
+                .catch(err => console.error(`Failed to load ${url}:`, err));
+        }
+
+        loadComponent("sidebar", "sidebar.html");
+        loadComponent("resume", "resume.html");
+    </script>
+
+    <script src="script.js"></script>
+</body>
+
+</html>

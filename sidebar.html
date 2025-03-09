@@ -1,0 +1,27 @@
+<div id="sidebar">
+    <h2>Resume Details</h2>
+
+    <div class="personal-info">
+        <div class="form-group">
+            <label for="name">Full Name</label>
+            <input type="text" id="name" placeholder="Your Name" oninput="updateResume()">
+        </div>
+
+        <div class="form-group">
+            <label for="contact">Contact Info</label>
+            <input type="text" id="contact" placeholder="Your Contact Info" oninput="updateResume()">
+        </div>
+
+        <div class="form-group">
+            <label for="bio">Bio</label>
+            <textarea id="bio" placeholder="Enter a short bio"
+                oninput="autoResizeTextarea(this); updateResume()"></textarea>
+        </div>
+    </div>
+
+    <h2>Job List</h2>
+    <div class="jobs-section">
+        <button id="addJobBtn" onclick="addJob()">Add Job</button>
+        <div id="jobsContainer"></div>
+    </div>
+</div>

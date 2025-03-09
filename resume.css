@@ -1,0 +1,215 @@
+/* resume.css */
+
+/* Container for both toolbar and resume */
+.resume-container {
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    overflow: hidden;
+}
+
+/* Resume toolbar */
+.resume-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--space-3) var(--space-6);
+    background: linear-gradient(135deg, var(--gradient-start), var(--gradient-end));
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    flex-shrink: 0;
+    height: 56px;
+    border-bottom: none;
+    color: white;
+    box-shadow: 0 4px 12px rgba(255, 75, 145, 0.2);
+}
+
+/* All toolbar buttons */
+.resume-toolbar button,
+.variation-selector button,
+.resume-toolbar-right button {
+    display: flex;
+    align-items: center;
+    margin: 0;
+}
+
+.resume-toolbar-left {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+}
+
+.resume-toolbar h2 {
+    margin: 0;
+    font-size: 1.125rem;
+    color: white;
+    font-weight: 600;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+.resume-toolbar-right {
+    display: flex;
+    align-items: center;
+    gap: var(--space-4);
+}
+
+.variation-controls {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+}
+
+.variation-controls label {
+    color: white;
+    font-size: 0.9rem;
+    font-weight: 500;
+    margin: 0;
+}
+
+.variation-selector {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+}
+
+.variation-selector select {
+    min-width: 200px;
+    padding: var(--space-2) var(--space-3);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: 6px;
+    font-size: 14px;
+    color: var(--neutral-800);
+    background: rgba(255, 255, 255, 0.9);
+}
+
+.variation-selector select:focus {
+    border-color: white;
+    outline: none;
+}
+
+.variation-selector button:hover {
+    background: var(--neutral-200);
+    color: var(--neutral-700);
+    transform: none;
+}
+
+.variant-name {
+    color: var(--neutral-100);
+    font-size: 0.9rem;
+    font-weight: 500;
+    padding-left: var(--space-3);
+    border-left: 2px solid rgba(255, 255, 255, 0.3);
+}
+
+/* Resume paper view */
+#resume {
+    flex-grow: 1;
+    overflow-y: auto;
+    background: var(--neutral-100);
+    padding: var(--space-6);
+}
+
+#resumeContent {
+    background: var(--neutral-50);
+    max-width: 800px;
+    margin: 0 auto;
+    padding: var(--space-8);
+    box-shadow: 0 4px 20px rgba(255, 176, 0, 0.15);
+    min-height: calc(100vh - var(--space-6) * 2);
+    font-family: var(--font-serif);
+    color: var(--neutral-800);
+    border-radius: 8px;
+}
+
+/* Resume header (Name, contact, bio) */
+.resume-header {
+    text-align: center;
+    border-bottom: 2px solid var(--neutral-800);
+    padding-bottom: var(--space-4);
+    margin-bottom: var(--space-6);
+}
+
+.resume-header h1 {
+    margin: 0;
+    font-size: 32px;
+    font-weight: bold;
+    color: var(--neutral-800);
+    font-family: var(--font-serif);
+    line-height: 1.2;
+}
+
+.resume-header p {
+    margin: var(--space-2) 0;
+    font-size: 16px;
+    color: var(--neutral-600);
+    line-height: 1.5;
+}
+
+/* Each job/section in the resume preview */
+.resume-section {
+    margin-bottom: var(--space-6);
+}
+
+.resume-section:last-child {
+    margin-bottom: 0;
+}
+
+.resume-section h3 {
+    font-size: 20px;
+    font-weight: bold;
+    color: var(--neutral-800);
+    margin-bottom: var(--space-3);
+    font-family: var(--font-serif);
+    cursor: pointer;
+    transition: color 0.2s;
+}
+
+.resume-section h3:hover {
+    color: var(--primary);
+}
+
+/* Resume preview bullet points */
+.resume-bullet-points {
+    list-style-type: disc;
+    padding-left: var(--space-6);
+    margin: 0;
+}
+
+.resume-bullet-points li {
+    font-size: 16px;
+    margin-bottom: var(--space-3);
+    color: var(--neutral-700);
+    line-height: 1.5;
+    cursor: pointer;
+    transition: color 0.2s;
+}
+
+.resume-bullet-points li:last-child {
+    margin-bottom: 0;
+}
+
+.resume-bullet-points li:hover {
+    color: var(--primary);
+}
+
+/* Save button in the preview area */
+#resumeContent .save-button {
+    display: block;
+    margin: 20px auto 0;
+    width: auto;
+}
+
+/* Toolbar buttons */
+.resume-toolbar button {
+    background: rgba(255, 255, 255, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.resume-toolbar button:hover {
+    background: rgba(255, 255, 255, 0.3);
+    border-color: rgba(255, 255, 255, 0.4);
+    /* transform: translateY(-1px); */
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
