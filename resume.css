@@ -117,18 +117,14 @@
     z-index: 1;
     background: var(--neutral-50);
     width: 210mm;
-    /* A4 width */
     min-height: 297mm;
-    /* A4 height */
     margin: 0 auto;
     padding: 20mm;
-    /* Standard A4 margins */
     box-shadow: 0 4px 20px rgba(255, 176, 0, 0.15);
     font-family: var(--font-serif);
     color: var(--neutral-800);
     border-radius: 8px;
     box-sizing: border-box;
-    page-break-after: always;
 }
 
 /* Resume header (Name, contact, bio) */
@@ -236,8 +232,16 @@
     z-index: 0;
 }
 
-/* Print-specific styles */
+/* Print and PDF-specific styles */
 @media print {
+
+    html,
+    body {
+        margin: 0;
+        padding: 0;
+        background: white;
+    }
+
     body * {
         visibility: hidden;
     }
@@ -248,27 +252,62 @@
     }
 
     #resumeContent {
-        position: absolute;
+        position: relative !important;
         left: 0;
         top: 0;
         width: 210mm;
-        min-height: 297mm;
+        min-height: 0;
         margin: 0;
         padding: 20mm;
         box-shadow: none;
         border-radius: 0;
         background: white;
+        /* Ensure consistent page margins */
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
     }
 
     .resume-section {
         page-break-inside: avoid;
+        margin-bottom: var(--space-6);
     }
 
     .resume-header {
         page-break-after: avoid;
+        margin-bottom: var(--space-6);
     }
 
     .resume-bullet-points {
         page-break-before: avoid;
     }
+}
+
+/* Separate styles for PDF generation */
+.generating-pdf {
+    background: white;
+}
+
+.generating-pdf #resumeContent {
+    position: relative !important;
+    background: white;
+    box-shadow: none;
+    border-radius: 0;
+    margin: 0;
+    padding: 20mm;
+    /* Keep the same box model as display */
+    box-sizing: border-box;
+    /* Ensure page breaks work properly */
+    page-break-after: always;
+}
+
+.generating-pdf .resume-section {
+    page-break-inside: avoid;
+}
+
+.generating-pdf .resume-header {
+    page-break-after: avoid;
+}
+
+.generating-pdf .resume-bullet-points {
+    page-break-before: avoid;
 }

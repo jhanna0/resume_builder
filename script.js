@@ -771,18 +771,22 @@ document.addEventListener('DOMContentLoaded', function () {
 function exportToPDF() {
     const element = document.getElementById('resumeContent');
     const opt = {
-        margin: [0, 0],
+        margin: 0, // Remove margins from PDF generation - we'll handle in CSS
         filename: `${resumeData.name || 'resume'}.pdf`,
         image: { type: 'jpeg', quality: 0.98 },
         html2canvas: {
             scale: 2,
             useCORS: true,
-            letterRendering: true
+            letterRendering: true,
+            scrollY: -window.scrollY // Fix scroll position issues
         },
         jsPDF: {
             unit: 'mm',
             format: 'a4',
             orientation: 'portrait'
+        },
+        pagebreak: {
+            mode: 'avoid-all'
         }
     };
 
@@ -793,8 +797,16 @@ function exportToPDF() {
     element.classList.add('generating-pdf');
 
     // Generate PDF
-    html2pdf().set(opt).from(element).save().then(() => {
-        // Remove PDF-specific class after generation
-        element.classList.remove('generating-pdf');
-    });
+    html2pdf()
+        .set(opt)
+        .from(element)
+        .save()
+        .then(() => {
+            element.classList.remove('generating-pdf');
+        })
+        .catch(error => {
+            console.error('PDF generation failed:', error);
+            element.classList.remove('generating-pdf');
+            alert('Failed to generate PDF. Please try again.');
+        });
 }
