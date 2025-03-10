@@ -16,7 +16,7 @@
     align-items: center;
     justify-content: space-between;
     padding: var(--space-3) var(--space-6);
-    background: linear-gradient(135deg, var(--gradient-start), var(--gradient-end));
+    background: linear-gradient(135deg, var(--theme-gradient-start), var(--theme-gradient-end));
     position: sticky;
     top: 0;
     z-index: 10;
@@ -122,7 +122,7 @@
     padding: 20mm;
     box-shadow: 0 4px 20px rgba(255, 176, 0, 0.15);
     font-family: var(--font-serif);
-    color: var(--neutral-800);
+    color: var(--theme-text);
     border-radius: 8px;
     box-sizing: border-box;
 }
@@ -130,7 +130,7 @@
 /* Resume header (Name, contact, bio) */
 .resume-header {
     text-align: center;
-    border-bottom: 2px solid var(--neutral-800);
+    border-bottom: 2px solid var(--theme-underline);
     padding-bottom: var(--space-4);
     margin-bottom: var(--space-6);
 }
@@ -139,7 +139,7 @@
     margin: 0;
     font-size: 32px;
     font-weight: bold;
-    color: var(--neutral-800);
+    color: var(--theme-heading);
     font-family: var(--font-serif);
     line-height: 1.2;
 }
@@ -147,7 +147,7 @@
 .resume-header p {
     margin: var(--space-2) 0;
     font-size: 16px;
-    color: var(--neutral-600);
+    /* color: var(--neutral-600); */
     line-height: 1.5;
 }
 
@@ -163,7 +163,7 @@
 .resume-section h3 {
     font-size: 20px;
     font-weight: bold;
-    color: var(--neutral-800);
+    color: var(--theme-primary);
     margin-bottom: var(--space-3);
     font-family: var(--font-serif);
     cursor: pointer;
@@ -171,7 +171,7 @@
 }
 
 .resume-section h3:hover {
-    color: var(--primary);
+    color: var(--theme-secondary);
 }
 
 /* Resume preview bullet points */
@@ -184,7 +184,7 @@
 .resume-bullet-points li {
     font-size: 16px;
     margin-bottom: var(--space-3);
-    color: var(--neutral-700);
+    /* color: var(--neutral-700); */
     line-height: 1.5;
     cursor: pointer;
     transition: color 0.2s;
@@ -195,7 +195,11 @@
 }
 
 .resume-bullet-points li:hover {
-    color: var(--primary);
+    color: var(--theme-primary);
+}
+
+.resume-bullet-points li::before {
+    color: var(--theme-bullet);
 }
 
 /* Save button in the preview area */
@@ -310,4 +314,119 @@
 
 .generating-pdf .resume-bullet-points {
     page-break-before: avoid;
+}
+
+/* Theme variables */
+:root {
+    /* Default theme (Modern Pink) */
+    --theme-primary: #ff4b91;
+    --theme-secondary: #ff85b1;
+    --theme-text: #2d3748;
+    --theme-heading: #1a202c;
+    --theme-bullet: #ff4b91;
+    --theme-underline: #ff85b1;
+    --theme-gradient-start: #ff4b91;
+    --theme-gradient-end: #ff85b1;
+}
+
+/* Classic Black & White theme */
+[data-theme="classic"] {
+    --theme-primary: #000000;
+    --theme-secondary: #333333;
+    --theme-text: #000000;
+    --theme-heading: #000000;
+    --theme-bullet: #000000;
+    --theme-underline: #333333;
+    --theme-gradient-start: #333333;
+    --theme-gradient-end: #666666;
+}
+
+/* Ocean Blue theme */
+[data-theme="ocean"] {
+    --theme-primary: #2b6cb0;
+    --theme-secondary: #4299e1;
+    --theme-text: #2d3748;
+    --theme-heading: #1a365d;
+    --theme-bullet: #2b6cb0;
+    --theme-underline: #4299e1;
+    --theme-gradient-start: #2b6cb0;
+    --theme-gradient-end: #4299e1;
+}
+
+/* Forest Green theme */
+[data-theme="forest"] {
+    --theme-primary: #2f855a;
+    --theme-secondary: #48bb78;
+    --theme-text: #2d3748;
+    --theme-heading: #1c4532;
+    --theme-bullet: #2f855a;
+    --theme-underline: #48bb78;
+    --theme-gradient-start: #2f855a;
+    --theme-gradient-end: #48bb78;
+}
+
+/* Theme selector styles */
+.theme-controls {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    margin-right: var(--space-4);
+}
+
+.theme-controls label {
+    color: white;
+    font-size: 0.9rem;
+    font-weight: 500;
+    margin: 0;
+}
+
+.theme-selector {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+}
+
+.theme-selector select {
+    min-width: 200px;
+    padding: var(--space-2) var(--space-3);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: 6px;
+    font-size: 14px;
+    color: var(--neutral-800);
+    background: rgba(255, 255, 255, 0.9);
+}
+
+.theme-selector select:focus {
+    border-color: white;
+    outline: none;
+}
+
+/* Update existing elements to use theme variables */
+.resume-toolbar {
+    background: linear-gradient(135deg, var(--theme-gradient-start), var(--theme-gradient-end));
+}
+
+.resume-header h1 {
+    color: var(--theme-heading);
+}
+
+.resume-section h3 {
+    color: var(--theme-primary);
+    /* border-bottom: 2px solid var(--theme-underline); */
+}
+
+.resume-bullet-points li::before {
+    color: var(--theme-bullet);
+}
+
+#resumeContent {
+    color: var(--theme-text);
+}
+
+/* Ensure theme colors are preserved in PDF export */
+@media print {
+    :root {
+        print-color-adjust: exact;
+        -webkit-print-color-adjust: exact;
+    }
 }

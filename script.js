@@ -771,19 +771,52 @@ document.addEventListener('DOMContentLoaded', function () {
 function exportToPDF() {
     const element = document.getElementById('resumeContent');
     const opt = {
-        margin: 0, // Remove margins from PDF generation - we'll handle in CSS
+        margin: 0,
         filename: `${resumeData.name || 'resume'}.pdf`,
-        image: { type: 'jpeg', quality: 0.98 },
+        image: {
+            type: 'png',
+            quality: 1.0
+        },
         html2canvas: {
-            scale: 2,
+            scale: 4,
             useCORS: true,
             letterRendering: true,
-            scrollY: -window.scrollY // Fix scroll position issues
+            scrollY: -window.scrollY,
+            backgroundColor: '#FFFFFF',
+            imageTimeout: 0,
+            removeContainer: true,
+            logging: false,
+            // Improve color accuracy
+            colorSpace: 'sRGB',
+            // Ensure CSS variables are properly rendered
+            onclone: (doc) => {
+                const root = doc.documentElement;
+                const computedStyle = getComputedStyle(document.documentElement);
+                const themeVars = [
+                    '--theme-primary',
+                    '--theme-secondary',
+                    '--theme-text',
+                    '--theme-heading',
+                    '--theme-bullet',
+                    '--theme-underline',
+                    '--theme-gradient-start',
+                    '--theme-gradient-end'
+                ];
+
+                themeVars.forEach(varName => {
+                    const value = computedStyle.getPropertyValue(varName);
+                    if (value) {
+                        root.style.setProperty(varName, value);
+                    }
+                });
+            }
         },
         jsPDF: {
             unit: 'mm',
             format: 'a4',
-            orientation: 'portrait'
+            orientation: 'portrait',
+            compress: false,
+            precision: 16
         },
         pagebreak: {
             mode: 'avoid-all'
@@ -810,3 +843,32 @@ function exportToPDF() {
             alert('Failed to generate PDF. Please try again.');
         });
 }
+
+// Theme handling
+function changeTheme() {
+    const themeSelect = document.getElementById('themeSelect');
+    const selectedTheme = themeSelect.value;
+    document.documentElement.setAttribute('data-theme', selectedTheme);
+
+    // Save theme preference
+    localStorage.setItem('selectedTheme', selectedTheme);
+}
+
+// Load saved theme on page load
+function loadSavedTheme() {
+    const savedTheme = localStorage.getItem('selectedTheme') || 'default';
+    const themeSelect = document.getElementById('themeSelect');
+    if (themeSelect) {
+        themeSelect.value = savedTheme;
+        document.documentElement.setAttribute('data-theme', savedTheme);
+    }
+}
+
+// Add theme loading to the existing loadResume function
+const originalLoadResume = window.loadResume;
+window.loadResume = function () {
+    if (typeof originalLoadResume === 'function') {
+        originalLoadResume();
+    }
+    loadSavedTheme();
+};
