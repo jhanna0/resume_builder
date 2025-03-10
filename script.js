@@ -848,12 +848,43 @@ async function exportToPDF() {
                 .join('\n')}
                     }
 
-                    /* Force black text on white background for better PDF output */
-                    .resume-header h1,
-                    .resume-header p,
-                    .resume-section h3,
+                    /* PDF-specific color adjustments */
+                    .resume-header {
+                        border-bottom: 2px solid var(--theme-underline) !important;
+                    }
+
+                    .resume-header h1 {
+                        color: var(--theme-heading) !important;
+                    }
+
+                    .resume-header p {
+                        color: var(--theme-text) !important;
+                    }
+
+                    .resume-section h3 {
+                        color: var(--theme-primary) !important;
+                    }
+
                     .resume-bullet-points li {
-                        color: black !important;
+                        color: var(--theme-text) !important;
+                    }
+
+                    /* Ensure good contrast for printing */
+                    @media print {
+                        .resume-header h1 {
+                            -webkit-print-color-adjust: exact;
+                            print-color-adjust: exact;
+                        }
+                        
+                        .resume-section h3 {
+                            -webkit-print-color-adjust: exact;
+                            print-color-adjust: exact;
+                        }
+
+                        .resume-bullet-points li {
+                            -webkit-print-color-adjust: exact;
+                            print-color-adjust: exact;
+                        }
                     }
                 </style>
             </head>

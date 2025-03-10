@@ -42,20 +42,12 @@ app.post('/api/generate-pdf', async (req, res) => {
     try {
         const { html, theme } = req.body;
 
-        // Debug: Log received data
-        console.log('Received theme:', theme);
-        console.log('HTML length:', html?.length);
-
         if (!html) {
             throw new Error('No HTML content received');
         }
 
-        // Save HTML for debugging
-        fs.writeFileSync('debug-received.html', html, 'utf8');
-        console.log('Debug HTML saved to debug-received.html');
 
         // Launch Puppeteer with debugging
-        console.log('Launching Puppeteer...');
         browser = await puppeteer.launch({
             headless: 'new',
             args: [
@@ -65,11 +57,9 @@ app.post('/api/generate-pdf', async (req, res) => {
             ]
         });
 
-        console.log('Creating new page...');
         const page = await browser.newPage();
 
         // Set viewport to A4 size
-        console.log('Setting viewport...');
         await page.setViewport({
             width: 794, // A4 width in pixels at 96 DPI
             height: 1123, // A4 height in pixels at 96 DPI
@@ -81,23 +71,15 @@ app.post('/api/generate-pdf', async (req, res) => {
         page.on('pageerror', err => console.error('Page error:', err));
         page.on('error', err => console.error('Error:', err));
 
-        // Monitor resource loading
-        page.on('response', response => {
-            console.log(`Resource loaded: ${response.url()} - Status: ${response.status()}`);
-        });
-
         // Set content with proper styling
-        console.log('Setting page content...');
         await page.setContent(html, {
             waitUntil: ['networkidle0', 'domcontentloaded', 'load']
         });
 
         // Wait for fonts to load
-        console.log('Waiting for fonts...');
         await page.evaluate(() => document.fonts.ready);
 
         // Inject the theme variables and styles
-        console.log('Injecting theme...');
         await page.evaluate((theme) => {
             document.documentElement.setAttribute('data-theme', theme);
 
@@ -142,21 +124,11 @@ app.post('/api/generate-pdf', async (req, res) => {
             };
         });
 
-        console.log('Content check results:', contentCheck);
-
         if (!contentCheck.success) {
             throw new Error(contentCheck.error);
         }
 
-        // Debug: Take a screenshot
-        console.log('Taking debug screenshot...');
-        await page.screenshot({
-            path: 'debug-screenshot.png',
-            fullPage: true
-        });
-
         // Generate PDF with more specific settings
-        console.log('Generating PDF...');
         const pdf = await page.pdf({
             format: 'A4',
             printBackground: true,
@@ -172,17 +144,9 @@ app.post('/api/generate-pdf', async (req, res) => {
             landscape: false
         });
 
-        // Save raw PDF for debugging
-        fs.writeFileSync('debug-output.pdf', pdf);
-        console.log('Debug PDF saved to debug-output.pdf');
-
-        console.log('PDF generated successfully');
-        console.log('PDF size:', pdf.length, 'bytes');
 
         // Verify PDF header using Buffer
         const pdfHeader = Buffer.from(pdf.slice(0, 8)).toString();
-        console.log('PDF header (as string):', pdfHeader);
-        console.log('PDF header (as hex):', Buffer.from(pdf.slice(0, 8)).toString('hex'));
 
         // Check if it's a valid PDF (should start with %PDF-)
         if (pdf.length < 8 || !pdfHeader.startsWith('%PDF-')) {
