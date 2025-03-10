@@ -3,12 +3,12 @@ let currentVariation = 'default';
 let resumeData = {
     name: '',
     contact: '',
-    bio: '',
     jobs: {}, // Master list of all jobs
     bulletPoints: {}, // Master list of all bullet points
     variations: {
         default: {
             name: 'Default',
+            bio: '', // Bio is now per-variation
             jobOrder: [], // Array of job IDs in display order
             selectedBullets: {} // Map of bulletId -> boolean (selected state)
         }
@@ -17,6 +17,7 @@ let resumeData = {
 
 // Add at the top with other global state
 let hasUnsavedChanges = false;
+let currentSpacing = 'normal';
 
 // Utility function to generate unique IDs
 function generateId() {
@@ -33,6 +34,7 @@ function createNewVariation() {
     const currentVar = resumeData.variations[currentVariation];
     resumeData.variations[variationId] = {
         name: name,
+        bio: currentVar.bio || '', // Copy bio from current variation
         jobOrder: [...currentVar.jobOrder],
         selectedBullets: { ...currentVar.selectedBullets }
     };
@@ -382,6 +384,11 @@ function loadVariation(variationId = null) {
     const variantName = resumeData.variations[variationId].name;
     document.querySelector('.variant-name').textContent = variantName;
 
+    // Update bio for this variation
+    const bioTextarea = document.getElementById('bio');
+    bioTextarea.value = resumeData.variations[variationId].bio || '';
+    autoResizeTextarea(bioTextarea);
+
     // Update jobs
     const jobsContainer = document.getElementById('jobsContainer');
     jobsContainer.innerHTML = '';
@@ -418,17 +425,18 @@ function updateResume() {
     // Update personal info in state
     resumeData.name = document.getElementById('name').value.trim();
     resumeData.contact = document.getElementById('contact').value.trim();
-    resumeData.bio = document.getElementById('bio').value.trim();
+    resumeData.variations[currentVariation].bio = document.getElementById('bio').value.trim();
 
     // Generate resume content
     let contentHTML = '';
 
     // Add personal info header
-    if (resumeData.name || resumeData.contact || resumeData.bio) {
+    const currentBio = resumeData.variations[currentVariation].bio;
+    if (resumeData.name || resumeData.contact || currentBio) {
         contentHTML += `<div class='resume-header'>`;
         if (resumeData.name) contentHTML += `<h1>${resumeData.name}</h1>`;
         if (resumeData.contact) contentHTML += `<p>${resumeData.contact}</p>`;
-        if (resumeData.bio) contentHTML += `<p>${resumeData.bio}</p>`;
+        if (currentBio) contentHTML += `<p>${currentBio}</p>`;
         contentHTML += `</div>`;
     }
 
@@ -586,17 +594,26 @@ function loadResume() {
                 data = {
                     name: data.name || '',
                     contact: data.contact || '',
-                    bio: data.bio || '',
                     jobs: migratedJobs,
                     bulletPoints: migratedBulletPoints,
                     variations: {
                         default: {
                             name: 'Default',
+                            bio: data.bio || '', // Migrate bio to default variation
                             jobOrder: jobOrder,
                             selectedBullets: selectedBullets
                         }
                     }
                 };
+            } else {
+                // Ensure all variations have a bio field
+                Object.values(data.variations).forEach(variation => {
+                    if (!('bio' in variation)) {
+                        variation.bio = data.bio || ''; // Migrate from root bio if it exists
+                    }
+                });
+                // Remove root bio if it exists
+                delete data.bio;
             }
 
             // Ensure all jobs have bulletPoints array
@@ -613,9 +630,6 @@ function loadResume() {
             // Set personal info
             document.getElementById('name').value = data.name || '';
             document.getElementById('contact').value = data.contact || '';
-            const bioTextarea = document.getElementById('bio');
-            bioTextarea.value = data.bio || '';
-            autoResizeTextarea(bioTextarea);
 
             // Setup variations dropdown
             const variationSelect = document.getElementById('variationSelect');
@@ -625,6 +639,7 @@ function loadResume() {
             if (!resumeData.variations.default) {
                 resumeData.variations.default = {
                     name: 'Default',
+                    bio: '',
                     jobOrder: [],
                     selectedBullets: {}
                 };
@@ -647,12 +662,12 @@ function loadResume() {
             resumeData = {
                 name: '',
                 contact: '',
-                bio: '',
                 jobs: {},
                 bulletPoints: {},
                 variations: {
                     default: {
                         name: 'Default',
+                        bio: '',
                         jobOrder: [],
                         selectedBullets: {}
                     }
@@ -807,7 +822,7 @@ async function exportToPDF() {
         const themeVars = {};
         const computedStyle = getComputedStyle(document.documentElement);
         for (const prop of computedStyle) {
-            if (prop.startsWith('--theme-')) {
+            if (prop.startsWith('--theme-') || prop.startsWith('--resume-')) {
                 themeVars[prop] = computedStyle.getPropertyValue(prop);
             }
         }
@@ -818,7 +833,7 @@ async function exportToPDF() {
         // Get the HTML content
         const html = `
             <!DOCTYPE html>
-            <html lang="en" data-theme="${currentTheme}">
+            <html lang="en" data-theme="${currentTheme}" data-spacing="${currentSpacing}">
             <head>
                 <meta charset="UTF-8">
                 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -841,8 +856,8 @@ async function exportToPDF() {
                         min-height: 0 !important;
                     }
 
-                    /* Ensure theme colors are preserved */
-                    :root[data-theme="${currentTheme}"] {
+                    /* Ensure theme and spacing variables are preserved */
+                    :root[data-theme="${currentTheme}"][data-spacing="${currentSpacing}"] {
                         ${Object.entries(themeVars)
                 .map(([prop, value]) => `${prop}: ${value};`)
                 .join('\n')}
@@ -851,6 +866,16 @@ async function exportToPDF() {
                     /* PDF-specific color adjustments */
                     .resume-header {
                         border-bottom: 2px solid var(--theme-underline) !important;
+                        padding-bottom: var(--resume-header-padding) !important;
+                        margin-bottom: var(--resume-header-margin) !important;
+                    }
+
+                    .resume-section {
+                        margin-bottom: var(--resume-section-margin) !important;
+                    }
+
+                    .resume-bullet-points li {
+                        margin-bottom: var(--resume-bullet-margin) !important;
                     }
 
                     .resume-header h1 {
@@ -937,10 +962,22 @@ async function exportToPDF() {
         // Create download link
         const downloadUrl = URL.createObjectURL(pdfBlob);
 
+        // Get name, variation, and theme for filename
+        const fullName = resumeData.name || 'Resume';
+        const currentVariation = document.getElementById('variationSelect').value;
+        const variationName = resumeData.variations[currentVariation]?.name || 'Default';
+
+        // Create filename: "Full Name - Variation - Theme.pdf"
+        // Replace any invalid filename characters with dashes
+        const filename = `${fullName} - ${variationName} - ${currentTheme}.pdf`
+            .replace(/[/\\?%*:|"<>]/g, '-')
+            .replace(/\s+/g, ' ')
+            .trim();
+
         // Create and click download link
         const a = document.createElement('a');
         a.href = downloadUrl;
-        a.download = 'resume.pdf';
+        a.download = filename;
         // Force binary transfer mode
         a.setAttribute('download', '');
         document.body.appendChild(a);
@@ -980,11 +1017,34 @@ function loadSavedTheme() {
     }
 }
 
-// Add theme loading to the existing loadResume function
+// Spacing handling
+function changeSpacing() {
+    const spacingSelect = document.getElementById('spacingSelect');
+    const selectedSpacing = spacingSelect.value;
+    document.documentElement.setAttribute('data-spacing', selectedSpacing);
+    currentSpacing = selectedSpacing;
+
+    // Save spacing preference
+    localStorage.setItem('selectedSpacing', selectedSpacing);
+}
+
+// Load saved spacing on page load
+function loadSavedSpacing() {
+    const savedSpacing = localStorage.getItem('selectedSpacing') || 'normal';
+    const spacingSelect = document.getElementById('spacingSelect');
+    if (spacingSelect) {
+        spacingSelect.value = savedSpacing;
+        document.documentElement.setAttribute('data-spacing', savedSpacing);
+        currentSpacing = savedSpacing;
+    }
+}
+
+// Update the existing loadResume function to include spacing
 const originalLoadResume = window.loadResume;
 window.loadResume = function () {
     if (typeof originalLoadResume === 'function') {
         originalLoadResume();
     }
     loadSavedTheme();
+    loadSavedSpacing();
 };
