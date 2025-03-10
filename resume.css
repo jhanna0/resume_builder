@@ -116,14 +116,19 @@
     position: relative;
     z-index: 1;
     background: var(--neutral-50);
-    max-width: 800px;
+    width: 210mm;
+    /* A4 width */
+    min-height: 297mm;
+    /* A4 height */
     margin: 0 auto;
-    padding: var(--space-8);
+    padding: 20mm;
+    /* Standard A4 margins */
     box-shadow: 0 4px 20px rgba(255, 176, 0, 0.15);
-    min-height: calc(100vh - var(--space-6) * 2);
     font-family: var(--font-serif);
     color: var(--neutral-800);
     border-radius: 8px;
+    box-sizing: border-box;
+    page-break-after: always;
 }
 
 /* Resume header (Name, contact, bio) */
@@ -229,4 +234,41 @@
     user-select: none;
     white-space: nowrap;
     z-index: 0;
+}
+
+/* Print-specific styles */
+@media print {
+    body * {
+        visibility: hidden;
+    }
+
+    #resumeContent,
+    #resumeContent * {
+        visibility: visible;
+    }
+
+    #resumeContent {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 210mm;
+        min-height: 297mm;
+        margin: 0;
+        padding: 20mm;
+        box-shadow: none;
+        border-radius: 0;
+        background: white;
+    }
+
+    .resume-section {
+        page-break-inside: avoid;
+    }
+
+    .resume-header {
+        page-break-after: avoid;
+    }
+
+    .resume-bullet-points {
+        page-break-before: avoid;
+    }
 }

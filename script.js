@@ -767,3 +767,34 @@ window.addEventListener('beforeunload', (e) => {
 document.addEventListener('DOMContentLoaded', function () {
     loadResume();
 });
+
+function exportToPDF() {
+    const element = document.getElementById('resumeContent');
+    const opt = {
+        margin: [0, 0],
+        filename: `${resumeData.name || 'resume'}.pdf`,
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: {
+            scale: 2,
+            useCORS: true,
+            letterRendering: true
+        },
+        jsPDF: {
+            unit: 'mm',
+            format: 'a4',
+            orientation: 'portrait'
+        }
+    };
+
+    // Remove any existing PDF-specific class
+    element.classList.remove('generating-pdf');
+
+    // Add PDF-specific class
+    element.classList.add('generating-pdf');
+
+    // Generate PDF
+    html2pdf().set(opt).from(element).save().then(() => {
+        // Remove PDF-specific class after generation
+        element.classList.remove('generating-pdf');
+    });
+}

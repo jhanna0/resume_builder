@@ -7,6 +7,7 @@
       "id": "job_1",
       "title": "Senior Software Engineer at TechCorp",
       "bulletPoints": [
+        "m81vj6qhtn3w2fuy9gc",
         "bullet_1_2",
         "bullet_1_3",
         "bullet_1_4",
@@ -44,6 +45,19 @@
         "bullet_4_2",
         "bullet_4_3",
         "bullet_4_4"
+      ]
+    },
+    "m81vjc1xacms6n8qid": {
+      "id": "m81vjc1xacms6n8qid",
+      "title": "Cool!",
+      "bulletPoints": [
+        "m81vjeikshe80azag4",
+        "m82g90hc64dgryp2l22",
+        "m82g90e3vk0pbjuxqnj",
+        "m82g90aemebcdc9w0y9",
+        "m82g906o1cbkrtgaz2n",
+        "m82g902alreoodr1xvr",
+        "m82g8zhdpq1j92i9jbg"
       ]
     }
   },
@@ -123,12 +137,45 @@
     "bullet_4_4": {
       "id": "bullet_4_4",
       "text": "Developed reusable component library used across multiple projects"
+    },
+    "m81vj6qhtn3w2fuy9gc": {
+      "id": "m81vj6qhtn3w2fuy9gc",
+      "text": "Cool!"
+    },
+    "m81vjeikshe80azag4": {
+      "id": "m81vjeikshe80azag4",
+      "text": "Nice"
+    },
+    "m82g8zhdpq1j92i9jbg": {
+      "id": "m82g8zhdpq1j92i9jbg",
+      "text": "Nice"
+    },
+    "m82g902alreoodr1xvr": {
+      "id": "m82g902alreoodr1xvr",
+      "text": "Nice"
+    },
+    "m82g906o1cbkrtgaz2n": {
+      "id": "m82g906o1cbkrtgaz2n",
+      "text": "Nice"
+    },
+    "m82g90aemebcdc9w0y9": {
+      "id": "m82g90aemebcdc9w0y9",
+      "text": "Nice"
+    },
+    "m82g90e3vk0pbjuxqnj": {
+      "id": "m82g90e3vk0pbjuxqnj",
+      "text": "Nice"
+    },
+    "m82g90hc64dgryp2l22": {
+      "id": "m82g90hc64dgryp2l22",
+      "text": "Nice"
     }
   },
   "variations": {
     "default": {
       "name": "Full Stack",
       "jobOrder": [
+        "m81vjc1xacms6n8qid",
         "job_1",
         "job_2",
         "job_3",
@@ -144,7 +191,15 @@
         "bullet_3_1": true,
         "bullet_3_2": true,
         "bullet_4_1": true,
-        "bullet_4_2": true
+        "bullet_4_2": true,
+        "m81vj6qhtn3w2fuy9gc": true,
+        "m81vjeikshe80azag4": true,
+        "m82g8zhdpq1j92i9jbg": true,
+        "m82g902alreoodr1xvr": true,
+        "m82g906o1cbkrtgaz2n": true,
+        "m82g90aemebcdc9w0y9": true,
+        "m82g90e3vk0pbjuxqnj": true,
+        "m82g90hc64dgryp2l22": true
       }
     },
     "frontend": {
