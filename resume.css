@@ -2,7 +2,8 @@
 
 /* Container for both toolbar and resume */
 .resume-container {
-    flex-grow: 1;
+    position: relative;
+    flex: 1;
     display: flex;
     flex-direction: column;
     height: 100vh;
@@ -20,10 +21,11 @@
     top: 0;
     z-index: 10;
     flex-shrink: 0;
-    height: 56px;
-    border-bottom: none;
+    height: 60px;
     color: white;
     box-shadow: 0 4px 12px rgba(255, 75, 145, 0.2);
+    border-bottom: 1px solid var(--neutral-200);
+    margin-bottom: var(--space-6);
 }
 
 /* All toolbar buttons */
@@ -105,13 +107,14 @@
 
 /* Resume paper view */
 #resume {
-    flex-grow: 1;
+    flex: 1;
     overflow-y: auto;
     background: var(--neutral-100);
-    padding: var(--space-6);
 }
 
 #resumeContent {
+    position: relative;
+    z-index: 1;
     background: var(--neutral-50);
     max-width: 800px;
     margin: 0 auto;
@@ -212,4 +215,18 @@
     border-color: rgba(255, 255, 255, 0.4);
     /* transform: translateY(-1px); */
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.unsaved-indicator {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) rotate(-45deg);
+    font-size: 120px;
+    font-weight: bold;
+    color: rgba(255, 100, 100, 0.4);
+    pointer-events: none;
+    user-select: none;
+    white-space: nowrap;
+    z-index: 0;
 }

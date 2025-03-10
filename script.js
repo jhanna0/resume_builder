@@ -15,6 +15,9 @@ let resumeData = {
     }
 };
 
+// Add at the top with other global state
+let hasUnsavedChanges = false;
+
 // Utility function to generate unique IDs
 function generateId() {
     return Date.now().toString(36) + Math.random().toString(36).substr(2);
@@ -408,6 +411,7 @@ function loadVariation(variationId = null) {
 }
 
 function updateResume() {
+    markUnsavedChanges();
     const resumeContent = document.getElementById('resumeContent');
     resumeContent.innerHTML = '';
 
@@ -635,6 +639,7 @@ function loadResume() {
 
             // Load default variation
             loadVariation('default');
+            clearUnsavedChanges();
         })
         .catch(err => {
             console.error("Failed to load resume data:", err);
@@ -654,6 +659,7 @@ function loadResume() {
                 }
             };
             loadVariation('default');
+            clearUnsavedChanges();
         });
 }
 
@@ -667,6 +673,7 @@ function saveResume() {
     })
         .then(response => response.json())
         .then(data => {
+            clearUnsavedChanges();
             alert('Resume saved successfully!');
         })
         .catch(error => {
@@ -719,6 +726,42 @@ function setupJobEventListeners(jobDiv) {
         deleteButton.addEventListener('click', deleteJob);
     }
 }
+
+function markUnsavedChanges() {
+    if (!hasUnsavedChanges) {
+        hasUnsavedChanges = true;
+        updateUnsavedIndicator();
+    }
+}
+
+function clearUnsavedChanges() {
+    hasUnsavedChanges = false;
+    updateUnsavedIndicator();
+}
+
+function updateUnsavedIndicator() {
+    let indicator = document.querySelector('.unsaved-indicator');
+    if (!indicator) {
+        indicator = document.createElement('div');
+        indicator.className = 'unsaved-indicator';
+        document.querySelector('.resume-container').appendChild(indicator);
+    }
+
+    if (hasUnsavedChanges) {
+        indicator.textContent = 'UNSAVED CHANGES';
+        indicator.style.display = 'block';
+    } else {
+        indicator.style.display = 'none';
+    }
+}
+
+// Add window beforeunload warning
+window.addEventListener('beforeunload', (e) => {
+    if (hasUnsavedChanges) {
+        e.preventDefault();
+        e.returnValue = '';
+    }
+});
 
 // Ensure DOM is loaded before initializing
 document.addEventListener('DOMContentLoaded', function () {

@@ -61,7 +61,7 @@
 /* Header Section */
 #sidebar h2 {
     margin: 0;
-    padding: var(--space-6);
+    padding: 0 var(--space-6);
     font-size: 1.25rem;
     color: var(--neutral-800);
     border-bottom: 1px solid var(--neutral-200);
@@ -69,6 +69,9 @@
     position: sticky;
     top: 0;
     z-index: 10;
+    height: calc(60px + var(--space-6));
+    display: flex;
+    align-items: center;
 }
 
 /* Personal Info Section */
