@@ -10,7 +10,9 @@ let resumeData = {
             name: 'Default',
             bio: '', // Bio is now per-variation
             jobOrder: [], // Array of job IDs in display order
-            selectedBullets: {} // Map of bulletId -> boolean (selected state)
+            selectedBullets: {}, // Map of bulletId -> boolean (selected state)
+            theme: 'default',
+            spacing: 'normal'
         }
     }
 };
@@ -36,7 +38,9 @@ function createNewVariation() {
         name: name,
         bio: currentVar.bio || '', // Copy bio from current variation
         jobOrder: [...currentVar.jobOrder],
-        selectedBullets: { ...currentVar.selectedBullets }
+        selectedBullets: { ...currentVar.selectedBullets },
+        theme: currentVar.theme || 'default',
+        spacing: currentVar.spacing || 'normal'
     };
 
     // Add to dropdown
@@ -381,12 +385,23 @@ function loadVariation(variationId = null) {
     }
 
     // Update variant name in toolbar
-    const variantName = resumeData.variations[variationId].name;
-    document.querySelector('.variant-name').textContent = variantName;
+    const variation = resumeData.variations[variationId];
+    document.querySelector('.variant-name').textContent = variation.name;
+
+    // Update theme and spacing
+    const themeSelect = document.getElementById('themeSelect');
+    const spacingSelect = document.getElementById('spacingSelect');
+
+    themeSelect.value = variation.theme || 'default';
+    spacingSelect.value = variation.spacing || 'normal';
+
+    document.documentElement.setAttribute('data-theme', variation.theme || 'default');
+    document.documentElement.setAttribute('data-spacing', variation.spacing || 'normal');
+    currentSpacing = variation.spacing || 'normal';
 
     // Update bio for this variation
     const bioTextarea = document.getElementById('bio');
-    bioTextarea.value = resumeData.variations[variationId].bio || '';
+    bioTextarea.value = variation.bio || '';
     autoResizeTextarea(bioTextarea);
 
     // Update jobs
@@ -394,7 +409,6 @@ function loadVariation(variationId = null) {
     jobsContainer.innerHTML = '';
 
     // Load jobs in the correct order from the variation's jobOrder
-    const variation = resumeData.variations[variationId];
     if (variation && variation.jobOrder) {
         // Important: Set currentVariation after clearing the container but before adding jobs
         currentVariation = variationId;
@@ -641,7 +655,9 @@ function loadResume() {
                     name: 'Default',
                     bio: '',
                     jobOrder: [],
-                    selectedBullets: {}
+                    selectedBullets: {},
+                    theme: 'default',
+                    spacing: 'normal'
                 };
             }
 
@@ -669,7 +685,9 @@ function loadResume() {
                         name: 'Default',
                         bio: '',
                         jobOrder: [],
-                        selectedBullets: {}
+                        selectedBullets: {},
+                        theme: 'default',
+                        spacing: 'normal'
                     }
                 }
             };
@@ -933,7 +951,8 @@ async function exportToPDF() {
             },
             body: JSON.stringify({
                 html,
-                theme: currentTheme
+                theme: currentTheme,
+                spacing: currentSpacing
             })
         });
 
@@ -1003,18 +1022,9 @@ function changeTheme() {
     const selectedTheme = themeSelect.value;
     document.documentElement.setAttribute('data-theme', selectedTheme);
 
-    // Save theme preference
-    localStorage.setItem('selectedTheme', selectedTheme);
-}
-
-// Load saved theme on page load
-function loadSavedTheme() {
-    const savedTheme = localStorage.getItem('selectedTheme') || 'default';
-    const themeSelect = document.getElementById('themeSelect');
-    if (themeSelect) {
-        themeSelect.value = savedTheme;
-        document.documentElement.setAttribute('data-theme', savedTheme);
-    }
+    // Save theme preference to current variation
+    resumeData.variations[currentVariation].theme = selectedTheme;
+    markUnsavedChanges();
 }
 
 // Spacing handling
@@ -1024,27 +1034,15 @@ function changeSpacing() {
     document.documentElement.setAttribute('data-spacing', selectedSpacing);
     currentSpacing = selectedSpacing;
 
-    // Save spacing preference
-    localStorage.setItem('selectedSpacing', selectedSpacing);
+    // Save spacing preference to current variation
+    resumeData.variations[currentVariation].spacing = selectedSpacing;
+    markUnsavedChanges();
 }
 
-// Load saved spacing on page load
-function loadSavedSpacing() {
-    const savedSpacing = localStorage.getItem('selectedSpacing') || 'normal';
-    const spacingSelect = document.getElementById('spacingSelect');
-    if (spacingSelect) {
-        spacingSelect.value = savedSpacing;
-        document.documentElement.setAttribute('data-spacing', savedSpacing);
-        currentSpacing = savedSpacing;
-    }
-}
-
-// Update the existing loadResume function to include spacing
+// Remove the old theme/spacing loading functions since we now load per variation
 const originalLoadResume = window.loadResume;
 window.loadResume = function () {
     if (typeof originalLoadResume === 'function') {
         originalLoadResume();
     }
-    loadSavedTheme();
-    loadSavedSpacing();
 };

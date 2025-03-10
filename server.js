@@ -40,12 +40,11 @@ app.post('/api/resume', (req, res) => {
 app.post('/api/generate-pdf', async (req, res) => {
     let browser;
     try {
-        const { html, theme } = req.body;
+        const { html, theme, spacing } = req.body;
 
         if (!html) {
             throw new Error('No HTML content received');
         }
-
 
         // Launch Puppeteer with debugging
         browser = await puppeteer.launch({
@@ -79,9 +78,10 @@ app.post('/api/generate-pdf', async (req, res) => {
         // Wait for fonts to load
         await page.evaluate(() => document.fonts.ready);
 
-        // Inject the theme variables and styles
-        await page.evaluate((theme) => {
+        // Inject the theme and spacing variables and styles
+        await page.evaluate((theme, spacing) => {
             document.documentElement.setAttribute('data-theme', theme);
+            document.documentElement.setAttribute('data-spacing', spacing);
 
             // Return a promise that resolves when all images and fonts are loaded
             return Promise.all([
@@ -94,7 +94,7 @@ app.post('/api/generate-pdf', async (req, res) => {
                         }))
                 )
             ]);
-        }, theme);
+        }, theme, spacing);
 
         // Debug: Check if resume content exists and is styled
         const contentCheck = await page.evaluate(() => {
@@ -105,6 +105,7 @@ app.post('/api/generate-pdf', async (req, res) => {
 
             const styles = window.getComputedStyle(content);
             const headerColor = window.getComputedStyle(document.querySelector('.resume-header h1') || {}).color;
+            const contentPadding = getComputedStyle(document.documentElement).getPropertyValue('--resume-content-padding').trim();
 
             // Log all computed styles for debugging
             const allStyles = {};
@@ -119,6 +120,8 @@ app.post('/api/generate-pdf', async (req, res) => {
                 color: styles.color,
                 headerColor,
                 themeAttribute: document.documentElement.getAttribute('data-theme'),
+                spacingAttribute: document.documentElement.getAttribute('data-spacing'),
+                contentPadding,
                 allStyles,
                 html: content.innerHTML
             };
@@ -128,22 +131,32 @@ app.post('/api/generate-pdf', async (req, res) => {
             throw new Error(contentCheck.error);
         }
 
-        // Generate PDF with more specific settings
+        console.log('Content check results:', {
+            theme: contentCheck.themeAttribute,
+            spacing: contentCheck.spacingAttribute,
+            padding: contentCheck.contentPadding
+        });
+
+        // Get the content padding value for margins
+        const contentPadding = await page.evaluate(() => {
+            return getComputedStyle(document.documentElement).getPropertyValue('--resume-content-padding').trim();
+        });
+
+        // Generate PDF with spacing-dependent margins
         const pdf = await page.pdf({
             format: 'A4',
             printBackground: true,
             margin: {
-                top: '20mm',
-                right: '20mm',
-                bottom: '20mm',
-                left: '20mm'
+                top: contentPadding,
+                right: contentPadding,
+                bottom: contentPadding,
+                left: contentPadding
             },
             preferCSSPageSize: true,
             displayHeaderFooter: false,
             scale: 1,
             landscape: false
         });
-
 
         // Verify PDF header using Buffer
         const pdfHeader = Buffer.from(pdf.slice(0, 8)).toString();
