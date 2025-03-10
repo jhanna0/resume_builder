@@ -357,6 +357,10 @@ function deleteBullet(button) {
     const jobDiv = bulletDiv.closest('.job');
     const jobId = jobDiv.dataset.jobId;
 
+    if (!confirm("WARNING: This will delete the bullet point for all resume variations permanently. Only delete bullet point if you will never need it again. If you want to hide this bullet point from a resume, uncheck it instead.")) {
+        return;
+    }
+
     // Remove bullet from job's bulletPoints array
     const job = resumeData.jobs[jobId];
     if (job) {
@@ -721,6 +725,11 @@ function deleteJob(buttonOrEvent) {
         buttonOrEvent.closest('.job');
 
     if (jobDiv) {
+
+        if (!confirm("WARNING: This will delete the job for all resume variations permanently. Only delete job if you will never need it again. If you want to hide this job from a resume, uncheck all bullet points instead.")) {
+            return;
+        }
+
         const jobId = jobDiv.dataset.jobId;
 
         // Remove job from all variations' jobOrder arrays

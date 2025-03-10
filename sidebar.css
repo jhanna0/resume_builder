@@ -183,7 +183,7 @@ textarea {
     font-size: 16px;
     font-weight: 500;
     padding: var(--space-3);
-    border: 1px solid var(--neutral-200);
+    border: 0;
     border-radius: 6px;
     background: white;
     transition: all 0.2s;
