@@ -768,80 +768,165 @@ document.addEventListener('DOMContentLoaded', function () {
     loadResume();
 });
 
-function exportToPDF() {
+async function exportToPDF() {
     const element = document.getElementById('resumeContent');
-    const opt = {
-        margin: 0,
-        filename: `${resumeData.name || 'resume'}.pdf`,
-        image: {
-            type: 'png',
-            quality: 1.0
-        },
-        html2canvas: {
-            scale: 4,
-            useCORS: true,
-            letterRendering: true,
-            scrollY: -window.scrollY,
-            backgroundColor: '#FFFFFF',
-            imageTimeout: 0,
-            removeContainer: true,
-            logging: false,
-            // Improve color accuracy
-            colorSpace: 'sRGB',
-            // Ensure CSS variables are properly rendered
-            onclone: (doc) => {
-                const root = doc.documentElement;
-                const computedStyle = getComputedStyle(document.documentElement);
-                const themeVars = [
-                    '--theme-primary',
-                    '--theme-secondary',
-                    '--theme-text',
-                    '--theme-heading',
-                    '--theme-bullet',
-                    '--theme-underline',
-                    '--theme-gradient-start',
-                    '--theme-gradient-end'
-                ];
+    const currentTheme = document.getElementById('themeSelect').value;
 
-                themeVars.forEach(varName => {
-                    const value = computedStyle.getPropertyValue(varName);
-                    if (value) {
-                        root.style.setProperty(varName, value);
-                    }
-                });
+    try {
+        // Add PDF-specific class
+        element.classList.add('generating-pdf');
+
+        // Debug: Check if we have the resume content
+        console.log('Resume content found:', !!element);
+        console.log('Resume content HTML:', element?.outerHTML);
+
+        // Function to get styles from a stylesheet
+        const getStylesFromSheet = (sheet) => {
+            try {
+                if (sheet.cssRules) {
+                    return Array.from(sheet.cssRules)
+                        .map(rule => rule.cssText)
+                        .join('\n');
+                }
+            } catch (e) {
+                console.warn('Could not access cssRules for sheet', e);
             }
-        },
-        jsPDF: {
-            unit: 'mm',
-            format: 'a4',
-            orientation: 'portrait',
-            compress: false,
-            precision: 16
-        },
-        pagebreak: {
-            mode: 'avoid-all'
+            return '';
+        };
+
+        // Get all styles from document
+        const styles = Array.from(document.styleSheets)
+            .map(sheet => getStylesFromSheet(sheet))
+            .filter(Boolean)
+            .join('\n');
+
+        // Debug: Log collected styles
+        console.log('Collected styles length:', styles.length);
+
+        // Get computed theme variables
+        const themeVars = {};
+        const computedStyle = getComputedStyle(document.documentElement);
+        for (const prop of computedStyle) {
+            if (prop.startsWith('--theme-')) {
+                themeVars[prop] = computedStyle.getPropertyValue(prop);
+            }
         }
-    };
 
-    // Remove any existing PDF-specific class
-    element.classList.remove('generating-pdf');
+        // Debug: Log theme variables
+        console.log('Theme variables:', themeVars);
 
-    // Add PDF-specific class
-    element.classList.add('generating-pdf');
+        // Get the HTML content
+        const html = `
+            <!DOCTYPE html>
+            <html lang="en" data-theme="${currentTheme}">
+            <head>
+                <meta charset="UTF-8">
+                <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+                <style>
+                    ${styles}
+                    
+                    /* Additional PDF-specific styles */
+                    body {
+                        margin: 0;
+                        padding: 0;
+                        background: white;
+                    }
+                    
+                    #resumeContent {
+                        background: white !important;
+                        box-shadow: none !important;
+                        margin: 0 !important;
+                        width: 100% !important;
+                        padding: 0 !important;
+                        min-height: 0 !important;
+                    }
 
-    // Generate PDF
-    html2pdf()
-        .set(opt)
-        .from(element)
-        .save()
-        .then(() => {
-            element.classList.remove('generating-pdf');
-        })
-        .catch(error => {
-            console.error('PDF generation failed:', error);
-            element.classList.remove('generating-pdf');
-            alert('Failed to generate PDF. Please try again.');
+                    /* Ensure theme colors are preserved */
+                    :root[data-theme="${currentTheme}"] {
+                        ${Object.entries(themeVars)
+                .map(([prop, value]) => `${prop}: ${value};`)
+                .join('\n')}
+                    }
+
+                    /* Force black text on white background for better PDF output */
+                    .resume-header h1,
+                    .resume-header p,
+                    .resume-section h3,
+                    .resume-bullet-points li {
+                        color: black !important;
+                    }
+                </style>
+            </head>
+            <body>
+                <div id="resumeContent">
+                    ${element.innerHTML}
+                </div>
+            </body>
+            </html>
+        `;
+
+        // Debug: Log the final HTML
+        console.log('Final HTML length:', html.length);
+
+        // Make request to generate PDF
+        console.log('Sending request to generate PDF...');
+        const response = await fetch('/api/generate-pdf', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                html,
+                theme: currentTheme
+            })
         });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(`Failed to generate PDF: ${errorData.details || 'Unknown error'}`);
+        }
+
+        // Get the PDF data as an array buffer first
+        const pdfBuffer = await response.arrayBuffer();
+        console.log('Received PDF buffer size:', pdfBuffer.byteLength);
+
+        // Create blob from array buffer
+        const pdfBlob = new Blob([pdfBuffer], { type: 'application/pdf' });
+
+        // Verify the blob
+        console.log('Created PDF blob:', {
+            size: pdfBlob.size,
+            type: pdfBlob.type
+        });
+
+        if (pdfBlob.size === 0) {
+            throw new Error('Received empty PDF data');
+        }
+
+        // Create download link
+        const downloadUrl = URL.createObjectURL(pdfBlob);
+
+        // Create and click download link
+        const a = document.createElement('a');
+        a.href = downloadUrl;
+        a.download = 'resume.pdf';
+        // Force binary transfer mode
+        a.setAttribute('download', '');
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+
+        // Clean up
+        setTimeout(() => {
+            URL.revokeObjectURL(downloadUrl);
+        }, 100);
+
+    } catch (error) {
+        console.error('PDF generation failed:', error);
+        alert(`Failed to generate PDF: ${error.message}`);
+    } finally {
+        element.classList.remove('generating-pdf');
+    }
 }
 
 // Theme handling
