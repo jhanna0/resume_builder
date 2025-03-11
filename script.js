@@ -22,8 +22,9 @@ let hasUnsavedChanges = false;
 let currentSpacing = 'normal';
 
 // Utility function to generate unique IDs
+// replace with uuid
 function generateId() {
-    return Date.now().toString(36) + Math.random().toString(36).substr(2);
+    return uuidv4();
 }
 
 function createNewVariation() {
