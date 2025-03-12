@@ -92,10 +92,36 @@
     outline: none;
 }
 
+.variation-selector button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: 6px;
+    background: rgba(255, 255, 255, 0.9);
+    color: var(--neutral-600);
+    font-size: 16px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
 .variation-selector button:hover {
     background: var(--neutral-200);
     color: var(--neutral-700);
     transform: none;
+}
+
+#deleteVariationBtn:hover {
+    background: #fee2e2;
+    color: #dc2626;
+    border-color: #dc2626;
+}
+
+#renameVariationBtn {
+    font-size: 14px;
 }
 
 .variant-name {

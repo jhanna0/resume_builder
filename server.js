@@ -588,6 +588,100 @@ app.post('/api/generate-pdf', async (req, res) => {
     }
 });
 
+// Rename variation
+app.put('/api/resume/:userId/variation/:variationUuid/rename', async (req, res) => {
+    const client = await pool.connect();
+    try {
+        const { userId, variationUuid } = req.params;
+        const { name } = req.body;
+
+        if (!name) {
+            return res.status(400).json({ error: 'Name is required' });
+        }
+
+        // Get user's resume ID
+        const resumeResult = await client.query(
+            'SELECT r.id FROM resumes r JOIN users u ON r.user_id = u.id WHERE u.uuid = $1',
+            [userId]
+        );
+
+        if (resumeResult.rows.length === 0) {
+            return res.status(404).json({ error: 'Resume not found' });
+        }
+
+        const resumeId = resumeResult.rows[0].id;
+
+        // Update variation name
+        const result = await client.query(
+            `UPDATE resume_variations 
+             SET name = $1 
+             WHERE uuid = $2 AND resume_id = $3
+             RETURNING id`,
+            [name, variationUuid, resumeId]
+        );
+
+        if (result.rows.length === 0) {
+            return res.status(404).json({ error: 'Variation not found' });
+        }
+
+        res.json({ message: 'Variation renamed successfully' });
+    } catch (error) {
+        console.error('Error renaming variation:', error);
+        res.status(500).json({ error: 'Failed to rename variation' });
+    } finally {
+        client.release();
+    }
+});
+
+// Delete variation
+app.delete('/api/resume/:userId/variation/:variationUuid', async (req, res) => {
+    const client = await pool.connect();
+    try {
+        const { userId, variationUuid } = req.params;
+
+        // Get user's resume ID
+        const resumeResult = await client.query(
+            'SELECT r.id FROM resumes r JOIN users u ON r.user_id = u.id WHERE u.uuid = $1',
+            [userId]
+        );
+
+        if (resumeResult.rows.length === 0) {
+            return res.status(404).json({ error: 'Resume not found' });
+        }
+
+        const resumeId = resumeResult.rows[0].id;
+
+        // Count total variations
+        const countResult = await client.query(
+            'SELECT COUNT(*) FROM resume_variations WHERE resume_id = $1',
+            [resumeId]
+        );
+
+        if (parseInt(countResult.rows[0].count) <= 1) {
+            return res.status(400).json({ error: 'Cannot delete the last variation' });
+        }
+
+        // Delete variation
+        const result = await client.query(
+            `DELETE FROM resume_variations 
+             WHERE uuid = $1 AND resume_id = $2
+             RETURNING id`,
+            [variationUuid, resumeId]
+        );
+
+        if (result.rows.length === 0) {
+            return res.status(404).json({ error: 'Variation not found' });
+        }
+
+        res.json({ message: 'Variation deleted successfully' });
+    } catch (error) {
+        console.error('Error deleting variation:', error);
+        res.status(500).json({ error: 'Failed to delete variation' });
+    } finally {
+        client.release();
+    }
+});
+
 app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);
 });

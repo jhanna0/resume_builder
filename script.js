@@ -51,6 +51,8 @@ window.saveResume = saveResume;
 window.createNewVariation = createNewVariation;
 window.loadVariation = loadVariation;
 window.moveSection = moveSection;
+window.renameVariation = renameVariation;
+window.deleteVariation = deleteVariation;
 
 // Utility function to generate unique IDs
 function generateId() {
@@ -1804,3 +1806,89 @@ function deleteSection(button) {
 // Add section movement functions to window
 window.moveSection = moveSection;
 window.deleteSection = deleteSection;
+
+async function renameVariation() {
+    if (!state.currentVariation) return;
+
+    const variation = state.variations[state.currentVariation];
+    const newName = prompt('Enter new name for variation:', variation.name);
+    if (!newName) return;
+
+    try {
+        const response = await fetch(`/api/resume/${state.userId}/variation/${state.currentVariation}/rename`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ name: newName })
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            throw new Error(data.error || 'Failed to rename variation');
+        }
+
+        // Update variation name in state
+        variation.name = newName;
+
+        // Update dropdown option
+        const option = document.querySelector(`#variationSelect option[value="${state.currentVariation}"]`);
+        if (option) {
+            option.textContent = newName;
+        }
+
+        // Update toolbar display
+        document.querySelector('.variant-name').textContent = newName;
+
+        markUnsavedChanges();
+    } catch (error) {
+        console.error('Error renaming variation:', error);
+        alert(error.message || 'Failed to rename variation');
+    }
+}
+
+async function deleteVariation() {
+    if (!state.currentVariation) return;
+
+    // Don't allow deleting the last variation
+    if (Object.keys(state.variations).length <= 1) {
+        alert('Cannot delete the last variation. At least one variation must exist.');
+        return;
+    }
+
+    if (!confirm('Are you sure you want to delete this variation? This cannot be undone.')) {
+        return;
+    }
+
+    try {
+        const response = await fetch(`/api/resume/${state.userId}/variation/${state.currentVariation}/`, {
+            method: 'DELETE'
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.error || 'Failed to delete variation');
+        }
+
+        // Remove from state
+        const deletedId = state.currentVariation;
+        delete state.variations[deletedId];
+
+        // Remove from dropdown
+        const option = document.querySelector(`#variationSelect option[value="${deletedId}"]`);
+        if (option) {
+            option.remove();
+        }
+
+        // Switch to another variation
+        const remainingVariationId = Object.keys(state.variations)[0];
+        document.getElementById('variationSelect').value = remainingVariationId;
+        loadVariation(remainingVariationId);
+
+        markUnsavedChanges();
+    } catch (error) {
+        console.error('Error deleting variation:', error);
+        alert(error.message);
+    }
+}
