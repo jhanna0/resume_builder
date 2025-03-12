@@ -207,7 +207,7 @@
     font-size: var(--resume-job-title-size);
     font-weight: bold;
     color: var(--theme-primary);
-    margin-bottom: var(--space-3);
+    margin-bottom: var(--space-2);
     font-family: var(--font-serif);
     cursor: pointer;
     transition: color 0.2s;
@@ -384,7 +384,6 @@
     --theme-gradient-start: #ff4b91;
     --theme-gradient-end: #ff85b1;
     --theme-link: #2563eb;
-    /* Add link color variable */
 
     /* Spacing variables - Normal by default */
     --resume-header-margin: 24px;

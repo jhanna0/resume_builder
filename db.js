@@ -81,8 +81,8 @@ const initDB = async () => {
         section_id INTEGER NOT NULL REFERENCES sections(id) ON DELETE CASCADE,
         title TEXT NOT NULL,
         company TEXT,
-        start_date DATE,
-        end_date DATE,
+        start_date TEXT,
+        end_date TEXT,
         order_index INTEGER NOT NULL,
         created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
     );

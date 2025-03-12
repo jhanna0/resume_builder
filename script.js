@@ -189,31 +189,36 @@ async function saveResume() {
         updateUI();
     }
 
-    fetch(`/api/resume/${state.userId}`, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-            id: state.currentResume.id,
-            title: state.currentResume.title,
-            full_name: document.getElementById('name').value,
-            contact_info: document.getElementById('contact').value,
-            sections: state.currentResume.sections,
-            jobs: state.currentResume.jobs,
-            bulletPoints: state.currentResume.bulletPoints,
-            variations: state.variations
-        })
-    })
-        .then(response => response.json())
-        .then(data => {
-            clearUnsavedChanges();
-            alert('Resume saved successfully!');
-        })
-        .catch(error => {
-            console.error('Error saving resume:', error);
-            alert('Failed to save resume');
+    try {
+        const response = await fetch(`/api/resume/${state.userId}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                id: state.currentResume.id,
+                title: state.currentResume.title,
+                full_name: document.getElementById('name').value,
+                contact_info: document.getElementById('contact').value,
+                sections: state.currentResume.sections,
+                jobs: state.currentResume.jobs,
+                bulletPoints: state.currentResume.bulletPoints,
+                variations: state.variations
+            })
         });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            throw new Error(data.error || 'Failed to save resume');
+        }
+
+        clearUnsavedChanges();
+        alert('Resume saved successfully!');
+    } catch (error) {
+        console.error('Error saving resume:', error);
+        alert(`Failed to save resume: ${error.message}`);
+    }
 }
 
 // Update addJob to prevent creating empty jobs if there's already an empty one in the section
@@ -285,6 +290,40 @@ function addJob(jobData = null, skipStateUpdate = false, targetSectionId = null)
         const existingJob = state.currentResume.jobs.find(j => j.id === jobId);
         if (existingJob) {
             existingJob.title = titleInput.value;
+        }
+        updateResume();
+    });
+
+    // Set company
+    const companyInput = jobDiv.querySelector('.job-company');
+    companyInput.value = job.company || '';
+    companyInput.addEventListener('input', () => {
+        const existingJob = state.currentResume.jobs.find(j => j.id === jobId);
+        if (existingJob) {
+            existingJob.company = companyInput.value;
+        }
+        updateResume();
+    });
+
+    // Set dates
+    const startDateInput = jobDiv.querySelector('.job-start-date');
+    const endDateInput = jobDiv.querySelector('.job-end-date');
+
+    startDateInput.value = job.start_date || '';
+    endDateInput.value = job.end_date || '';
+
+    startDateInput.addEventListener('input', () => {
+        const existingJob = state.currentResume.jobs.find(j => j.id === jobId);
+        if (existingJob) {
+            existingJob.start_date = startDateInput.value;
+        }
+        updateResume();
+    });
+
+    endDateInput.addEventListener('input', () => {
+        const existingJob = state.currentResume.jobs.find(j => j.id === jobId);
+        if (existingJob) {
+            existingJob.end_date = endDateInput.value;
         }
         updateResume();
     });
@@ -1011,9 +1050,9 @@ function updateResume() {
                 }
                 if (job.start_date || job.end_date) {
                     sectionHTML += `<p class="job-dates">`;
-                    if (job.start_date) sectionHTML += formatDate(job.start_date);
+                    if (job.start_date) sectionHTML += job.start_date;
                     if (job.start_date && job.end_date) sectionHTML += ' - ';
-                    if (job.end_date) sectionHTML += formatDate(job.end_date);
+                    if (job.end_date) sectionHTML += job.end_date;
                     sectionHTML += `</p>`;
                 }
                 sectionHTML += `<ul class="resume-bullet-points">`;
@@ -1076,7 +1115,7 @@ function updateResume() {
 function formatDate(dateStr) {
     if (!dateStr) return '';
     const date = new Date(dateStr);
-    return date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+    return date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
 }
 
 function initSidebarResize() {

@@ -175,6 +175,9 @@ textarea {
     padding: var(--space-4);
     background: white;
     border-radius: 8px 8px 0 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
 }
 
 /* Job Title Input */
@@ -190,12 +193,52 @@ textarea {
     box-sizing: border-box;
 }
 
-.job-title:hover {
-    border-color: var(--neutral-300);
+/* Job Company Input */
+.job-company {
+    width: 100%;
+    font-size: 15px;
+    padding: var(--space-3);
+    border: 0;
+    border-radius: 6px;
+    background: white;
+    transition: all 0.2s;
+    box-sizing: border-box;
 }
 
-.job-title:focus {
-    border-color: var(--primary);
+/* Job Dates Container */
+.job-dates {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+}
+
+.job-dates span {
+    color: var(--neutral-600);
+    font-size: 14px;
+}
+
+.job-dates input[type="date"] {
+    flex: 1;
+    padding: var(--space-2);
+    border: 0;
+    border-radius: 6px;
+    background: white;
+    font-size: 14px;
+    color: var(--neutral-700);
+}
+
+/* Hover states */
+.job-title:hover,
+.job-company:hover,
+.job-dates input[type="date"]:hover {
+    background: var(--neutral-50);
+}
+
+/* Focus states */
+.job-title:focus,
+.job-company:focus,
+.job-dates input[type="date"]:focus {
+    background: var(--neutral-50);
     outline: none;
 }
 
