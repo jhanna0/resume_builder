@@ -215,3 +215,48 @@ h6 {
     margin-top: 10px;
     font-size: 14px;
 }
+
+.section {
+    margin-bottom: 20px;
+    padding: 15px;
+    background: var(--theme-section-bg);
+    border-radius: 8px;
+}
+
+.section-header {
+    margin-bottom: 10px;
+}
+
+.section-name {
+    width: 100%;
+    padding: 8px;
+    font-size: 1.2em;
+    font-weight: 600;
+    border: none;
+    background: transparent;
+    color: var(--theme-text);
+}
+
+.section-controls {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    margin-bottom: 15px;
+    padding: 5px 0;
+    border-bottom: 1px solid var(--theme-border);
+}
+
+.section-controls .move-buttons {
+    display: flex;
+    gap: 5px;
+}
+
+.section-controls .delete-section {
+    color: var(--theme-delete-button);
+    border-color: var(--theme-delete-button);
+}
+
+.section-controls .delete-section:hover {
+    background-color: var(--theme-delete-button-hover-bg);
+    color: var(--theme-delete-button-hover-text);
+}

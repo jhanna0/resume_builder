@@ -73,14 +73,17 @@ function createNewVariation() {
     const variationId = generateId();
     const currentVar = state.variations[state.currentVariation];
 
-    // Clone current variation's structure
+    // Clone current variation's structure and visibility states
     state.variations[variationId] = {
         id: variationId,
         name: name,
         bio: currentVar?.bio || '',
         theme: currentVar?.theme || 'default',
         spacing: currentVar?.spacing || 'normal',
-        bulletPoints: currentVar ? [...currentVar.bulletPoints] : []
+        bulletPoints: currentVar ? currentVar.bulletPoints.map(bp => ({
+            bullet_point_id: bp.bullet_point_id,
+            is_visible: bp.is_visible
+        })) : []
     };
 
     // Add to dropdown
@@ -126,12 +129,14 @@ function addSection(sectionData = null) {
     sectionDiv.innerHTML = `
         <div class="section-header">
             <input type="text" class="section-name" value="${name}" placeholder="Section Name">
-            <div class="section-controls">
-                <button onclick="addJob(null, false, '${sectionId}')" class="add-job-btn" title="Add Job">+ Add Job</button>
+        </div>
+        <div class="section-controls">
+            <button onclick="addJob(null, false, '${sectionId}')" class="add-job-btn" title="Add Job">Add Job</button>
+            <div class="move-buttons">
                 <button onclick="moveSection(this, 'up')" title="Move Up">↑</button>
                 <button onclick="moveSection(this, 'down')" title="Move Down">↓</button>
-                <button onclick="deleteSection(this)" class="delete-section" title="Delete Section">×</button>
             </div>
+            <button onclick="deleteSection(this)" class="delete-section" title="Delete Section">×</button>
         </div>
         <div class="section-jobs"></div>
     `;
@@ -256,17 +261,16 @@ function addBulletPoint(containerOrButton, bulletData = null, skipStateUpdate = 
         const jobBullets = state.currentResume.bulletPoints.filter(b => b.job_id === jobId);
         normalizeOrderIndices(jobBullets);
 
-        // Set visibility for all variations
-        Object.values(state.variations).forEach(variation => {
+        // Set visibility for variations
+        Object.entries(state.variations).forEach(([variationId, variation]) => {
             if (!variation.bulletPoints) {
                 variation.bulletPoints = [];
             }
-            if (!variation.bulletPoints.find(bp => bp.bullet_point_id === bulletId)) {
-                variation.bulletPoints.push({
-                    bullet_point_id: bulletId,
-                    is_visible: true
-                });
-            }
+            // Only set visible in current variation
+            variation.bulletPoints.push({
+                bullet_point_id: bulletId,
+                is_visible: variationId === state.currentVariation
+            });
         });
     }
 
@@ -279,7 +283,8 @@ function addBulletPoint(containerOrButton, bulletData = null, skipStateUpdate = 
     const checkbox = bulletDiv.querySelector('input[type="checkbox"]');
 
     textArea.value = bullet.content;
-    checkbox.checked = true;
+    // Set checkbox based on current variation visibility
+    checkbox.checked = state.currentVariation === state.currentVariation;
 
     // Add event listeners
     textArea.addEventListener('input', () => {
@@ -1022,12 +1027,14 @@ function updateUI() {
             sectionDiv.innerHTML = `
                 <div class="section-header">
                     <input type="text" class="section-name" value="${section.name}" placeholder="Section Name">
-                    <div class="section-controls">
-                        <button onclick="addJob(null, false, '${section.id}')" class="add-job-btn" title="Add Job">+ Add Job</button>
+                </div>
+                <div class="section-controls">
+                    <button onclick="addJob(null, false, '${section.id}')" class="add-job-btn" title="Add Job">Add Job</button>
+                    <div class="move-buttons">
                         <button onclick="moveSection(this, 'up')" title="Move Up">↑</button>
                         <button onclick="moveSection(this, 'down')" title="Move Down">↓</button>
-                        <button onclick="deleteSection(this)" class="delete-section" title="Delete Section">×</button>
                     </div>
+                    <button onclick="deleteSection(this)" class="delete-section" title="Delete Section">×</button>
                 </div>
                 <div class="section-jobs"></div>
             `;
