@@ -742,15 +742,226 @@ function updateResume() {
 
     // Function to convert URLs to clickable links
     function linkifyText(text) {
-        // URL pattern that matches common URL formats
-        const urlPattern = /(?:https?:\/\/)?(?:www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b(?:[-a-zA-Z0-9()@:%_\+.~#?&//=]*)/gi;
+        // Common false positives to exclude (case-insensitive)
+        const exclusions = /\b(B\.S\.|M\.S\.|Ph\.D\.|Dr\.|Mr\.|Mrs\.|Ms\.|Sr\.|Jr\.|vs\.)\b/i;
 
-        return text.replace(urlPattern, (url) => {
-            // Add https:// if protocol is missing
+        // Get stored false positives from localStorage
+        const falsePositives = JSON.parse(localStorage.getItem('falsePositiveUrls') || '[]');
+        const falsePositivePattern = falsePositives.length > 0 ?
+            new RegExp(`\\b(${falsePositives.map(fp => fp.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')})\\b`, 'gi') :
+            null;
+
+        // More precise URL pattern
+        const urlPattern = /\b(?:https?:\/\/)?(?:www\.)?(?![-.])([-\w.]+\.(?:com|net|org|edu|gov|mil|biz|info|io|co|ai|app|dev|cafe|tech|xyz|me|site|web|cloud|store|shop|online|blog|team|docs|pages|news|guide|space|world|life|live|media|games|studio|design|link|click|email|mail|app|apple|google|microsoft|amazon|meta|linkedin|github|gitlab|bitbucket|stackoverflow|medium|dev\.to))\b(?:[-\w\/#@%+=~|]*)(?!\.)\b/gi;
+
+        // Function to safely encode text to base64
+        const safeEncode = (str) => {
+            try {
+                return btoa(encodeURIComponent(str));
+            } catch (e) {
+                console.error('Encoding error:', e);
+                return str;
+            }
+        };
+
+        // Function to safely decode base64 text
+        const safeDecode = (str) => {
+            try {
+                return decodeURIComponent(atob(str));
+            } catch (e) {
+                console.error('Decoding error:', e);
+                return str;
+            }
+        };
+
+        // First, temporarily encode excluded patterns and false positives
+        let processedText = text.replace(exclusions, match => `__${safeEncode(match)}__`);
+        if (falsePositivePattern) {
+            processedText = processedText.replace(falsePositivePattern, match => `__${safeEncode(match)}__`);
+        }
+
+        // Then process URLs
+        processedText = processedText.replace(urlPattern, (url) => {
             const fullUrl = url.startsWith('http') ? url : `https://${url}`;
-            return `<a href="${fullUrl}" target="_blank" rel="noopener noreferrer">${url}</a>`;
+            // Add data attributes for the confirmation popup
+            return `<a href="#" data-url="${fullUrl}" data-original-text="${url}" class="pending-link">${url}</a>`;
         });
+
+        // Finally, decode the excluded patterns
+        return processedText.replace(/__([A-Za-z0-9+/=]+)__/g, (_, encoded) => safeDecode(encoded));
     }
+
+    // Create popup styles if they don't exist
+    if (!document.getElementById('link-popup-styles')) {
+        const styles = document.createElement('style');
+        styles.id = 'link-popup-styles';
+        styles.textContent = `
+            .link-popup {
+                position: fixed;
+                background: white;
+                border: 1px solid var(--theme-primary);
+                border-radius: 8px;
+                padding: 12px;
+                box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+                z-index: 1000;
+                display: none;
+                font-size: 14px;
+                max-width: 300px;
+                opacity: 0;
+                transform: scale(0.95);
+                transition: opacity 0.15s ease, transform 0.15s ease;
+            }
+            .link-popup.visible {
+                opacity: 1;
+                transform: scale(1);
+            }
+            .link-popup p {
+                margin: 0 0 10px 0;
+                color: var(--theme-text);
+            }
+            .link-popup .buttons {
+                display: flex;
+                gap: 8px;
+                justify-content: flex-end;
+            }
+            .link-popup button {
+                padding: 4px 8px;
+                border: 1px solid var(--theme-primary);
+                border-radius: 4px;
+                background: white;
+                color: var(--theme-primary);
+                cursor: pointer;
+                font-size: 12px;
+            }
+            .link-popup button.open-link {
+                background: var(--theme-primary);
+                color: white;
+            }
+            .link-popup button:hover {
+                opacity: 0.9;
+            }
+            .pending-link {
+                border-bottom: 1px dashed var(--theme-link);
+            }
+        `;
+        document.head.appendChild(styles);
+    }
+
+    // Create popup element if it doesn't exist
+    let popup = document.getElementById('link-popup');
+    if (!popup) {
+        popup = document.createElement('div');
+        popup.id = 'link-popup';
+        popup.className = 'link-popup';
+        popup.innerHTML = `
+            <p>Open this link?</p>
+            <p class="link-url" style="color: var(--theme-primary); font-size: 12px;"></p>
+            <div class="buttons">
+                <button class="not-link">Not a Link</button>
+                <button class="open-link">Open Link</button>
+            </div>
+        `;
+        document.body.appendChild(popup);
+    }
+
+    // Function to handle link clicks
+    function handleLinkClick(e) {
+        if (!e.target.matches('.pending-link')) return;
+        e.preventDefault();
+
+        const url = e.target.dataset.url;
+        const originalText = e.target.dataset.originalText;
+        const rect = e.target.getBoundingClientRect();
+
+        // Update popup content
+        popup.querySelector('.link-url').textContent = url;
+
+        // Make popup visible but not positioned yet (to get its dimensions)
+        popup.style.display = 'block';
+        const popupRect = popup.getBoundingClientRect();
+
+        // Calculate available space
+        const viewportHeight = window.innerHeight;
+        const spaceBelow = viewportHeight - rect.bottom;
+        const spaceAbove = rect.top;
+
+        // Position horizontally
+        let left = rect.left;
+        if (left + popupRect.width > window.innerWidth) {
+            left = window.innerWidth - popupRect.width - 10; // 10px padding from window edge
+        }
+        left = Math.max(10, left); // Ensure at least 10px from left edge
+
+        // Position vertically - if not enough space below, show above
+        let top;
+        if (spaceBelow >= popupRect.height + 5) {
+            // Show below
+            top = rect.bottom + 5;
+            popup.style.transformOrigin = 'top left';
+        } else if (spaceAbove >= popupRect.height + 5) {
+            // Show above
+            top = rect.top - popupRect.height - 5;
+            popup.style.transformOrigin = 'bottom left';
+        } else {
+            // Not enough space above or below, show in middle of screen
+            top = (viewportHeight - popupRect.height) / 2;
+            popup.style.transformOrigin = 'center left';
+        }
+
+        // Apply the calculated position
+        popup.style.left = `${left}px`;
+        popup.style.top = `${top}px`;
+
+        // Show popup with animation
+        requestAnimationFrame(() => {
+            popup.classList.add('visible');
+        });
+
+        // Update click handlers with the current url and originalText
+        popup.querySelector('.open-link').onclick = () => {
+            window.open(url, '_blank', 'noopener,noreferrer');
+            hidePopup();
+        };
+
+        popup.querySelector('.not-link').onclick = () => {
+            // Add to false positives
+            const falsePositives = JSON.parse(localStorage.getItem('falsePositiveUrls') || '[]');
+            if (!falsePositives.includes(originalText)) {
+                falsePositives.push(originalText);
+                localStorage.setItem('falsePositiveUrls', JSON.stringify(falsePositives));
+            }
+
+            // Replace link with plain text
+            const span = document.createElement('span');
+            span.textContent = originalText;
+            e.target.parentNode.replaceChild(span, e.target);
+            hidePopup();
+
+            // Update resume to reflect changes
+            updateResume();
+        };
+    }
+
+    // Update show/hide logic for popup
+    function showPopup() {
+        popup.classList.add('visible');
+    }
+
+    function hidePopup() {
+        popup.classList.remove('visible');
+        setTimeout(() => {
+            if (!popup.classList.contains('visible')) {
+                popup.style.display = 'none';
+            }
+        }, 150);
+    }
+
+    // Update outside click handler
+    document.addEventListener('click', (e) => {
+        if (!e.target.matches('.pending-link') && !e.target.closest('.link-popup')) {
+            hidePopup();
+        }
+    });
 
     // Generate resume content
     let contentHTML = '';
@@ -855,6 +1066,9 @@ function updateResume() {
             }
         });
     });
+
+    // Add event listener for link clicks
+    resumeContent.addEventListener('click', handleLinkClick);
 }
 
 function formatDate(dateStr) {
