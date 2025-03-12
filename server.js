@@ -1,39 +1,437 @@
-const express = require('express');
-const fs = require('fs');
-const path = require('path');
-const puppeteer = require('puppeteer');
+import express from 'express';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import puppeteer from 'puppeteer';
+import pool from './db.js';
+import { v4 as uuidv4 } from 'uuid';
+import bcrypt from 'bcrypt';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-const DATA_FILE = path.join(__dirname, 'data.json');
 
 // Middleware
 app.use(express.json());
 app.use(express.static(__dirname));
 
+async function createDefaultResume(userId) {
+    // Get user's ID from UUID
+    const userResult = await pool.query('SELECT id FROM users WHERE uuid = $1', [userId]);
+    if (userResult.rows.length === 0) {
+        throw new Error('User not found');
+    }
+
+    const userIdNum = userResult.rows[0].id;
+    const defaultResumeUuid = uuidv4();
+
+    // Create default resume
+    const newResumeResult = await pool.query(
+        `INSERT INTO resumes (uuid, user_id, title, full_name, contact_info) 
+         VALUES ($1, $2, $3, $4, $5) 
+         RETURNING id, uuid, title, full_name, contact_info`,
+        [defaultResumeUuid, userIdNum, 'My Resume', '', '']
+    );
+
+    // Create default variation
+    const defaultVariationUuid = uuidv4();
+    await pool.query(
+        `INSERT INTO resume_variations (uuid, resume_id, name, bio, theme, spacing)
+         VALUES ($1, $2, $3, $4, $5, $6)`,
+        [defaultVariationUuid, newResumeResult.rows[0].id, 'Default', '', 'default', 'normal']
+    );
+
+    // Create a default "Experience" section
+    const defaultSectionUuid = uuidv4();
+    await pool.query(
+        `INSERT INTO sections (uuid, resume_id, name, order_index)
+         VALUES ($1, $2, $3, $4)`,
+        [defaultSectionUuid, newResumeResult.rows[0].id, 'Experience', 0]
+    );
+
+    // Return the new resume data
+    return newResumeResult.rows;
+}
+
+// User registration
+app.post('/api/register', async (req, res) => {
+    const client = await pool.connect();
+    try {
+        const { email, password } = req.body;
+
+        if (!email || !password) {
+            return res.status(400).json({ error: 'Email and password are required' });
+        }
+
+        // Validate email format
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(email)) {
+            return res.status(400).json({ error: 'Invalid email format' });
+        }
+
+        // Check if user already exists
+        const existingUser = await client.query(
+            'SELECT id FROM users WHERE email = $1',
+            [email]
+        );
+
+        if (existingUser.rows.length > 0) {
+            return res.status(409).json({ error: 'User already exists' });
+        }
+
+        await client.query('BEGIN');
+
+        // Create user
+        const userUuid = uuidv4();
+        const saltRounds = 10;
+        const passwordHash = await bcrypt.hash(password, saltRounds);
+
+        const userResult = await client.query(
+            `INSERT INTO users (uuid, email, password_hash) 
+             VALUES ($1, $2, $3) 
+             RETURNING id, uuid`,
+            [userUuid, email, passwordHash]
+        );
+
+        // Create default resume
+        const resumeUuid = uuidv4();
+        const resumeResult = await client.query(
+            `INSERT INTO resumes (uuid, user_id, title) 
+             VALUES ($1, $2, $3) 
+             RETURNING id`,
+            [resumeUuid, userResult.rows[0].id, 'My Resume']
+        );
+
+        // Create default variation
+        const variationUuid = uuidv4();
+        await client.query(
+            `INSERT INTO resume_variations (uuid, resume_id, name, theme, spacing)
+             VALUES ($1, $2, $3, $4, $5)`,
+            [variationUuid, resumeResult.rows[0].id, 'Default', 'default', 'normal']
+        );
+
+        // Create default "Experience" section
+        const sectionUuid = uuidv4();
+        await client.query(
+            `INSERT INTO sections (uuid, resume_id, name, order_index)
+             VALUES ($1, $2, $3, $4)`,
+            [sectionUuid, resumeResult.rows[0].id, 'Experience', 0]
+        );
+
+        await client.query('COMMIT');
+
+        res.json({
+            message: 'User registered successfully',
+            userId: userUuid
+        });
+    } catch (error) {
+        await client.query('ROLLBACK');
+        console.error('Error registering user:', error);
+        res.status(500).json({ error: 'Failed to register user' });
+    } finally {
+        client.release();
+    }
+});
+
+// Login endpoint
+app.post('/api/login', async (req, res) => {
+    try {
+        const { email, password } = req.body;
+
+        if (!email || !password) {
+            return res.status(400).json({ error: 'Email and password are required' });
+        }
+
+        // Get user
+        const userResult = await pool.query(
+            'SELECT uuid, password_hash FROM users WHERE email = $1',
+            [email]
+        );
+
+        if (userResult.rows.length === 0) {
+            return res.status(401).json({ error: 'Invalid credentials' });
+        }
+
+        const user = userResult.rows[0];
+        const passwordMatch = await bcrypt.compare(password, user.password_hash);
+
+        if (!passwordMatch) {
+            return res.status(401).json({ error: 'Invalid credentials' });
+        }
+
+        res.json({
+            message: 'Login successful',
+            userId: user.uuid
+        });
+    } catch (error) {
+        console.error('Error logging in:', error);
+        res.status(500).json({ error: 'Failed to log in' });
+    }
+});
+
 // Load resume data
-app.get('/api/resume', (req, res) => {
-    fs.readFile(DATA_FILE, 'utf8', (err, data) => {
-        if (err) {
-            return res.status(500).json({ error: 'Failed to load data' });
+app.get('/api/resume/:userId', async (req, res) => {
+    try {
+        const { userId } = req.params;
+
+        // Get the user's resume
+        const resumeResult = await pool.query(
+            'SELECT id, uuid, title, full_name, contact_info FROM resumes WHERE user_id = (SELECT id FROM users WHERE uuid = $1) LIMIT 1',
+            [userId]
+        );
+
+        if (resumeResult.rows.length === 0) {
+            // Create a default resume for new users
+            resumeResult.rows = await createDefaultResume(userId);
         }
-        try {
-            const jsonData = JSON.parse(data);
-            res.json(jsonData);
-        } catch (err) {
-            res.status(500).json({ error: 'Invalid data format' });
-        }
-    });
+
+        const resumeId = resumeResult.rows[0].id;
+
+        // Get all sections in order
+        const sectionsResult = await pool.query(
+            'SELECT id, uuid, name, order_index FROM sections WHERE resume_id = $1 ORDER BY order_index ASC',
+            [resumeId]
+        );
+
+        // Get all jobs in order
+        const jobsResult = await pool.query(
+            'SELECT id, uuid, section_id, title, company, start_date, end_date, order_index FROM jobs WHERE resume_id = $1 ORDER BY order_index ASC',
+            [resumeId]
+        );
+
+        // Get all bullet points in order
+        const bulletPointsResult = await pool.query(
+            'SELECT bp.id, bp.uuid, bp.job_id, bp.content, bp.order_index FROM bullet_points bp ' +
+            'JOIN jobs j ON bp.job_id = j.id ' +
+            'WHERE j.resume_id = $1 ' +
+            'ORDER BY bp.order_index ASC',
+            [resumeId]
+        );
+
+        // Get all variations
+        const variationsResult = await pool.query(
+            'SELECT id, uuid, name, bio, theme, spacing FROM resume_variations WHERE resume_id = $1',
+            [resumeId]
+        );
+
+        // Get bullet point visibility for all variations
+        const visibilityResult = await pool.query(
+            `SELECT bpv.variation_id, bpv.bullet_point_id, bpv.is_visible
+             FROM bullet_point_visibility bpv
+             JOIN resume_variations rv ON bpv.variation_id = rv.id
+             WHERE rv.resume_id = $1`,
+            [resumeId]
+        );
+
+        // Structure the response
+        const response = {
+            id: resumeResult.rows[0].uuid, // Send UUID to frontend
+            title: resumeResult.rows[0].title,
+            full_name: resumeResult.rows[0].full_name,
+            contact_info: resumeResult.rows[0].contact_info,
+            sections: sectionsResult.rows.map(s => ({
+                ...s,
+                id: s.uuid // Send UUID to frontend
+            })),
+            jobs: jobsResult.rows.map(j => ({
+                ...j,
+                id: j.uuid, // Send UUID to frontend
+                section_id: sectionsResult.rows.find(s => s.id === j.section_id)?.uuid // Map to section UUID
+            })),
+            bulletPoints: bulletPointsResult.rows.map(bp => ({
+                ...bp,
+                id: bp.uuid, // Send UUID to frontend
+                job_id: jobsResult.rows.find(j => j.id === bp.job_id)?.uuid // Map to job UUID
+            })),
+            variations: variationsResult.rows.reduce((acc, variation) => {
+                // Get visibility map for this variation
+                const visibilityMap = visibilityResult.rows
+                    .filter(v => v.variation_id === variation.id)
+                    .reduce((map, v) => {
+                        const bulletUuid = bulletPointsResult.rows.find(bp => bp.id === v.bullet_point_id)?.uuid;
+                        if (bulletUuid) {
+                            map[bulletUuid] = v.is_visible;
+                        }
+                        return map;
+                    }, {});
+
+                acc[variation.uuid] = { // Use UUID as key
+                    ...variation,
+                    id: variation.uuid, // Send UUID to frontend
+                    bulletPoints: bulletPointsResult.rows.map(bp => ({
+                        bullet_point_id: bp.uuid, // Use UUID
+                        is_visible: visibilityMap[bp.uuid] ?? true // Default to visible if not set
+                    }))
+                };
+                return acc;
+            }, {})
+        };
+
+        res.json(response);
+    } catch (error) {
+        console.error('Error loading resume:', error);
+        res.status(500).json({ error: 'Failed to load resume data' });
+    }
 });
 
 // Save resume data
-app.post('/api/resume', (req, res) => {
-    fs.writeFile(DATA_FILE, JSON.stringify(req.body, null, 2), 'utf8', (err) => {
-        if (err) {
-            return res.status(500).json({ error: 'Failed to save data' });
+app.post('/api/resume/:userId', async (req, res) => {
+    const client = await pool.connect();
+    try {
+        const { userId } = req.params;
+        const { id: resumeUuid, title, full_name, contact_info, sections, jobs, bulletPoints, variations } = req.body;
+
+        await client.query('BEGIN');
+
+        // Get user's ID from UUID
+        const userResult = await client.query('SELECT id FROM users WHERE uuid = $1', [userId]);
+        if (userResult.rows.length === 0) {
+            throw new Error('User not found');
         }
-        res.json({ message: 'Data saved successfully' });
-    });
+        const userIdNum = userResult.rows[0].id;
+
+        // Update or create resume
+        const resumeResult = await client.query(
+            `INSERT INTO resumes (uuid, user_id, title, full_name, contact_info) 
+             VALUES ($1, $2, $3, $4, $5)
+             ON CONFLICT (uuid) 
+             DO UPDATE SET title = $3, full_name = $4, contact_info = $5
+             RETURNING id`,
+            [resumeUuid, userIdNum, title, full_name, contact_info]
+        );
+        const resumeId = resumeResult.rows[0].id;
+
+        // Get existing items to determine what to delete
+        const existingSections = await client.query('SELECT id, uuid FROM sections WHERE resume_id = $1', [resumeId]);
+        const existingJobs = await client.query('SELECT id, uuid FROM jobs WHERE resume_id = $1', [resumeId]);
+        const existingBullets = await client.query(
+            'SELECT id, uuid FROM bullet_points WHERE job_id IN (SELECT id FROM jobs WHERE resume_id = $1)',
+            [resumeId]
+        );
+
+        // Create maps for looking up internal IDs
+        const sectionIdMap = new Map(existingSections.rows.map(s => [s.uuid, s.id]));
+        const jobIdMap = new Map(existingJobs.rows.map(j => [j.uuid, j.id]));
+        const bulletIdMap = new Map(existingBullets.rows.map(b => [b.uuid, b.id]));
+
+        // Delete items that are no longer present
+        const keepSectionUuids = new Set(sections.map(s => s.id));
+        const keepJobUuids = new Set(jobs.map(j => j.id));
+        const keepBulletUuids = new Set(bulletPoints.map(b => b.id));
+
+        for (const section of existingSections.rows) {
+            if (!keepSectionUuids.has(section.uuid)) {
+                await client.query('DELETE FROM sections WHERE id = $1', [section.id]);
+            }
+        }
+
+        for (const job of existingJobs.rows) {
+            if (!keepJobUuids.has(job.uuid)) {
+                await client.query('DELETE FROM jobs WHERE id = $1', [job.id]);
+            }
+        }
+
+        for (const bullet of existingBullets.rows) {
+            if (!keepBulletUuids.has(bullet.uuid)) {
+                await client.query('DELETE FROM bullet_points WHERE id = $1', [bullet.id]);
+            }
+        }
+
+        // Insert or update sections
+        for (let i = 0; i < sections.length; i++) {
+            const section = sections[i];
+            const result = await client.query(
+                `INSERT INTO sections (uuid, resume_id, name, order_index) 
+                 VALUES ($1, $2, $3, $4)
+                 ON CONFLICT (uuid) 
+                 DO UPDATE SET name = $3, order_index = $4
+                 RETURNING id`,
+                [section.id, resumeId, section.name, i]
+            );
+            sectionIdMap.set(section.id, result.rows[0].id);
+        }
+
+        // Insert or update jobs
+        for (let i = 0; i < jobs.length; i++) {
+            const job = jobs[i];
+            const sectionId = sectionIdMap.get(job.section_id);
+            if (!sectionId) continue;
+
+            const result = await client.query(
+                `INSERT INTO jobs 
+                 (uuid, resume_id, section_id, title, company, start_date, end_date, order_index) 
+                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+                 ON CONFLICT (uuid)
+                 DO UPDATE SET section_id = $3, title = $4, company = $5, 
+                             start_date = $6, end_date = $7, order_index = $8
+                 RETURNING id`,
+                [job.id, resumeId, sectionId, job.title, job.company, job.start_date, job.end_date, i]
+            );
+            jobIdMap.set(job.id, result.rows[0].id);
+        }
+
+        // Insert or update bullet points
+        for (let i = 0; i < bulletPoints.length; i++) {
+            const bullet = bulletPoints[i];
+            const jobId = jobIdMap.get(bullet.job_id);
+            if (!jobId) continue;
+
+            const result = await client.query(
+                `INSERT INTO bullet_points (uuid, job_id, content, order_index) 
+                 VALUES ($1, $2, $3, $4)
+                 ON CONFLICT (uuid)
+                 DO UPDATE SET content = $3, order_index = $4
+                 RETURNING id`,
+                [bullet.id, jobId, bullet.content, i]
+            );
+            bulletIdMap.set(bullet.id, result.rows[0].id);
+        }
+
+        // Handle variations
+        for (const [variationUuid, variation] of Object.entries(variations)) {
+            const result = await client.query(
+                `INSERT INTO resume_variations (uuid, resume_id, name, bio, theme, spacing)
+                 VALUES ($1, $2, $3, $4, $5, $6)
+                 ON CONFLICT (uuid)
+                 DO UPDATE SET name = $3, bio = $4, theme = $5, spacing = $6
+                 RETURNING id`,
+                [variationUuid, resumeId, variation.name, variation.bio, variation.theme || 'default', variation.spacing || 'normal']
+            );
+            const variationId = result.rows[0].id;
+
+            // Update bullet point visibility
+            if (variation.bulletPoints) {
+                // First, remove old visibility entries
+                await client.query(
+                    'DELETE FROM bullet_point_visibility WHERE variation_id = $1',
+                    [variationId]
+                );
+
+                // Then insert new ones
+                const visibilityValues = variation.bulletPoints
+                    .filter(bp => bp.bullet_point_id && bulletIdMap.has(bp.bullet_point_id))
+                    .map(bp => `(${variationId}, ${bulletIdMap.get(bp.bullet_point_id)}, ${bp.is_visible})`);
+
+                if (visibilityValues.length > 0) {
+                    await client.query(
+                        `INSERT INTO bullet_point_visibility 
+                         (variation_id, bullet_point_id, is_visible) 
+                         VALUES ${visibilityValues.join(',')}`
+                    );
+                }
+            }
+        }
+
+        await client.query('COMMIT');
+        res.json({ message: 'Resume saved successfully' });
+    } catch (error) {
+        await client.query('ROLLBACK');
+        console.error('Error saving resume:', error);
+        res.status(500).json({ error: 'Failed to save resume data' });
+    } finally {
+        client.release();
+    }
 });
 
 // Generate PDF using Puppeteer
