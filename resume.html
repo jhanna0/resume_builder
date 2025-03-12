@@ -29,7 +29,7 @@
             <div class="variation-controls">
                 <!-- <label>Variation:</label> -->
                 <div class="variation-selector">
-                    <select id="variationSelect" onchange="loadVariation()">
+                    <select id="variationSelect" onchange="loadVariation(this.value)">
                         <option value="default">Default</option>
                     </select>
                     <button id="newVariationBtn" onclick="createNewVariation()" title="Create New Variation">+</button>

@@ -1,28 +1,58 @@
+import { v4 as uuidv4 } from 'https://cdn.jsdelivr.net/npm/uuid@9.0.1/+esm';
+
+// Dynamically load the resume section only
+function loadComponent(targetId, url) {
+    fetch(url)
+        .then(resp => resp.text())
+        .then(html => (document.getElementById(targetId).innerHTML = html))
+        .catch(err => console.error(`Failed to load ${url}:`, err));
+}
+
+// Load resume component
+loadComponent("resume", "resume.html");
+
 // Global state
-let currentVariation = 'default';
-let resumeData = {
-    name: '',
-    contact: '',
-    jobs: {}, // Master list of all jobs
-    bulletPoints: {}, // Master list of all bullet points
-    variations: {
-        default: {
-            name: 'Default',
-            bio: '', // Bio is now per-variation
-            jobOrder: [], // Array of job IDs in display order
-            selectedBullets: {}, // Map of bulletId -> boolean (selected state)
-            theme: 'default',
-            spacing: 'normal'
-        }
-    }
+let state = {
+    userId: "3fe7e28f-a53d-4c99-bbaa-f48583e9ea30",  // Default test user ID
+    currentResume: null,
+    currentVariation: null,
+    variations: {},
+    isDirty: false
 };
 
 // Add at the top with other global state
 let hasUnsavedChanges = false;
 let currentSpacing = 'normal';
 
+// Auth Modal
+const authModal = document.getElementById('authModal');
+const closeBtn = document.querySelector('.close');
+const authTabs = document.querySelectorAll('.auth-tab');
+const authForms = document.querySelectorAll('.auth-form');
+
+// Make necessary functions available globally
+window.addJob = addJob;
+window.addBulletPoint = addBulletPoint;
+window.moveJob = moveJob;
+window.moveBullet = moveBullet;
+window.duplicateBullet = duplicateBullet;
+window.deleteBullet = deleteBullet;
+window.deleteJob = deleteJob;
+window.updateResume = updateResume;
+window.autoResizeTextarea = autoResizeTextarea;
+window.login = login;
+window.signup = signup;
+window.loadResume = loadResume;
+window.changeTheme = changeTheme;
+window.changeSpacing = changeSpacing;
+window.exportToPDF = exportToPDF;
+window.addSection = addSection;
+window.saveResume = saveResume;
+window.createNewVariation = createNewVariation;
+window.loadVariation = loadVariation;
+window.moveSection = moveSection;
+
 // Utility function to generate unique IDs
-// replace with uuid
 function generateId() {
     return uuidv4();
 }
@@ -31,17 +61,17 @@ function createNewVariation() {
     const name = prompt('Enter a name for the new variation (e.g., "Apple UI", "Meta UI"):');
     if (!name) return;
 
-    const variationId = name.toLowerCase().replace(/[^a-z0-9]/g, '_');
+    const variationId = generateId();
+    const currentVar = state.variations[state.currentVariation];
 
     // Clone current variation's structure
-    const currentVar = resumeData.variations[currentVariation];
-    resumeData.variations[variationId] = {
+    state.variations[variationId] = {
+        id: variationId,
         name: name,
-        bio: currentVar.bio || '', // Copy bio from current variation
-        jobOrder: [...currentVar.jobOrder],
-        selectedBullets: { ...currentVar.selectedBullets },
-        theme: currentVar.theme || 'default',
-        spacing: currentVar.spacing || 'normal'
+        bio: currentVar?.bio || '',
+        theme: currentVar?.theme || 'default',
+        spacing: currentVar?.spacing || 'normal',
+        bulletPoints: currentVar ? [...currentVar.bulletPoints] : []
     };
 
     // Add to dropdown
@@ -53,29 +83,78 @@ function createNewVariation() {
     // Switch to new variation
     document.getElementById('variationSelect').value = variationId;
     loadVariation(variationId);
+    markUnsavedChanges();
 }
 
-function addJob(jobData = null) {
-    const jobId = jobData?.id || generateId();
+function addSection(sectionData = null) {
+    const name = sectionData?.name || prompt('Enter section name (e.g., "Experience", "Education"):');
+    if (!name) return;
 
-    // If this is a new job, add it to the master list
-    if (!jobData) {
-        resumeData.jobs[jobId] = {
-            id: jobId,
-            title: '',
-            bulletPoints: [] // Array of bullet point IDs for this job
-        };
+    const sectionId = sectionData?.id || generateId();
+    const section = {
+        id: sectionId,
+        name: name,
+        order_index: sectionData?.order_index || state.currentResume.sections.length
+    };
+
+    // Add to state
+    state.currentResume.sections.push(section);
+
+    // Create section UI
+    const sectionDiv = document.createElement('div');
+    sectionDiv.className = 'section';
+    sectionDiv.dataset.sectionId = sectionId;
+
+    sectionDiv.innerHTML = `
+        <div class="section-header">
+            <input type="text" class="section-name" value="${name}" placeholder="Section Name">
+            <div class="section-controls">
+                <button onclick="moveSection(this, 'up')" title="Move Up">↑</button>
+                <button onclick="moveSection(this, 'down')" title="Move Down">↓</button>
+                <button onclick="deleteSection(this)" class="delete-section" title="Delete Section">×</button>
+            </div>
+        </div>
+    `;
+
+    // Add event listeners
+    const nameInput = sectionDiv.querySelector('.section-name');
+    nameInput.addEventListener('input', () => {
+        section.name = nameInput.value;
+        updateResume();
+    });
+
+    // Add to container
+    const container = document.getElementById('sectionsContainer');
+    container.appendChild(sectionDiv);
+
+    // If this is a new section, mark changes
+    if (!sectionData) {
+        markUnsavedChanges();
     }
 
-    // Add job ID to current variation if not present
-    if (!resumeData.variations[currentVariation].jobOrder.includes(jobId)) {
-        // Add to the beginning of the array for new jobs
-        if (!jobData) {
-            resumeData.variations[currentVariation].jobOrder.unshift(jobId);
-        } else {
-            // For existing jobs (during load), add to the end
-            resumeData.variations[currentVariation].jobOrder.push(jobId);
-        }
+    return section;
+}
+
+function addJob(jobData = null, skipStateUpdate = false) {
+    // If no sections exist, create one
+    if (state.currentResume.sections.length === 0) {
+        addSection({ name: 'Experience', order_index: 0 });
+    }
+
+    const jobId = jobData?.id || generateId();
+    const job = {
+        id: jobId,
+        section_id: jobData?.section_id || state.currentResume.sections[0].id,
+        title: jobData?.title || '',
+        company: jobData?.company || '',
+        start_date: jobData?.start_date || null,
+        end_date: jobData?.end_date || null,
+        order_index: jobData ? jobData.order_index : 0
+    };
+
+    // Only update state if this is a new job and we're not skipping state update
+    if (!skipStateUpdate && !state.currentResume.jobs.find(j => j.id === jobId)) {
+        state.currentResume.jobs.push(job);
     }
 
     // Create job UI
@@ -84,37 +163,31 @@ function addJob(jobData = null) {
     jobDiv.dataset.jobId = jobId;
 
     // Set job details
-    const job = resumeData.jobs[jobId];
     const titleInput = jobDiv.querySelector('.job-title');
     titleInput.value = job.title;
     titleInput.addEventListener('input', () => {
-        job.title = titleInput.value;
+        const existingJob = state.currentResume.jobs.find(j => j.id === jobId);
+        if (existingJob) {
+            existingJob.title = titleInput.value;
+        }
         updateResume();
     });
 
-    // Add to container - prepend for new jobs, append for existing ones
+    // Add to container
     const container = document.getElementById('jobsContainer');
-    if (!jobData) {
-        container.insertBefore(jobDiv, container.firstChild);
-    } else {
-        container.appendChild(jobDiv);
-    }
+    container.insertBefore(jobDiv, container.firstChild);
 
-    // Add existing bullet points in reverse order to match the data structure
-    const bulletContainer = jobDiv.querySelector('.bulletPointsContainer');
-    [...job.bulletPoints].reverse().forEach(bulletId => {
-        if (resumeData.bulletPoints[bulletId]) {
-            addBulletPoint(bulletContainer, resumeData.bulletPoints[bulletId]);
-        }
-    });
+    // If this is a new job, mark changes
+    if (!jobData && !skipStateUpdate) {
+        markUnsavedChanges();
+    }
 
     return jobDiv;
 }
 
-function addBulletPoint(containerOrButton, bulletData = null) {
+function addBulletPoint(containerOrButton, bulletData = null, skipStateUpdate = false) {
     let bulletContainer;
     if (containerOrButton.tagName === "BUTTON") {
-        // If clicked from the "Add Bullet Point" button, find the bulletPointsContainer
         bulletContainer = containerOrButton.closest('.job-content').querySelector('.bulletPointsContainer');
     } else {
         bulletContainer = containerOrButton;
@@ -123,16 +196,30 @@ function addBulletPoint(containerOrButton, bulletData = null) {
     const jobId = bulletContainer.closest('.job').dataset.jobId;
     const bulletId = bulletData?.id || generateId();
 
-    // If this is a new bullet point, add it to the master list
-    if (!bulletData) {
-        resumeData.bulletPoints[bulletId] = {
-            id: bulletId,
-            text: ''
-        };
-        // Add to beginning of job's bullet points array
-        resumeData.jobs[jobId].bulletPoints.unshift(bulletId);
-        // Set visibility to true for new bullet points
-        resumeData.variations[currentVariation].selectedBullets[bulletId] = true;
+    // Create bullet point data
+    const bullet = {
+        id: bulletId,
+        job_id: jobId,
+        content: bulletData?.content || '',
+        order_index: bulletData ? bulletData.order_index : 0
+    };
+
+    // Only update state if this is a new bullet and we're not skipping state update
+    if (!skipStateUpdate && !state.currentResume.bulletPoints.find(b => b.id === bulletId)) {
+        state.currentResume.bulletPoints.push(bullet);
+
+        // Set visibility for all variations
+        Object.values(state.variations).forEach(variation => {
+            if (!variation.bulletPoints) {
+                variation.bulletPoints = [];
+            }
+            if (!variation.bulletPoints.find(bp => bp.bullet_point_id === bulletId)) {
+                variation.bulletPoints.push({
+                    bullet_point_id: bulletId,
+                    is_visible: true
+                });
+            }
+        });
     }
 
     // Create bullet point UI
@@ -140,32 +227,44 @@ function addBulletPoint(containerOrButton, bulletData = null) {
     const bulletDiv = template.content.cloneNode(true).firstElementChild;
     bulletDiv.dataset.bulletId = bulletId;
 
-    // Set bullet point details
-    const bullet = resumeData.bulletPoints[bulletId];
     const textArea = bulletDiv.querySelector('textarea');
     const checkbox = bulletDiv.querySelector('input[type="checkbox"]');
 
-    textArea.value = bullet.text;
-    checkbox.checked = resumeData.variations[currentVariation].selectedBullets[bulletId] || false;
+    textArea.value = bullet.content;
+    checkbox.checked = true; // New bullets are visible by default
 
     // Add event listeners
     textArea.addEventListener('input', () => {
-        bullet.text = textArea.value;
+        const existingBullet = state.currentResume.bulletPoints.find(b => b.id === bulletId);
+        if (existingBullet) {
+            existingBullet.content = textArea.value;
+        }
         autoResizeTextarea(textArea);
         updateResume();
     });
 
     checkbox.addEventListener('change', () => {
-        resumeData.variations[currentVariation].selectedBullets[bulletId] = checkbox.checked;
+        if (state.currentVariation) {
+            const variation = state.variations[state.currentVariation];
+            const bulletPoint = variation.bulletPoints.find(bp => bp.bullet_point_id === bulletId);
+            if (bulletPoint) {
+                bulletPoint.is_visible = checkbox.checked;
+            } else {
+                variation.bulletPoints.push({
+                    bullet_point_id: bulletId,
+                    is_visible: checkbox.checked
+                });
+            }
+        }
         updateResume();
     });
 
-    // Add to container in the same order as the data structure (at the beginning)
+    // Add to container
     bulletContainer.insertBefore(bulletDiv, bulletContainer.firstChild);
 
-    // Initial resize if there's text
-    if (bullet.text) {
-        autoResizeTextarea(textArea);
+    // If this is a new bullet point, mark changes
+    if (!bulletData && !skipStateUpdate) {
+        markUnsavedChanges();
     }
 
     return bulletDiv;
@@ -174,7 +273,7 @@ function addBulletPoint(containerOrButton, bulletData = null) {
 function updateJobTags(jobDiv) {
     const jobId = jobDiv.dataset.jobId;
     const tagsContainer = jobDiv.querySelector('.job-tags');
-    const job = resumeData.jobs[jobId];
+    const job = state.currentResume.jobs[jobId];
 
     tagsContainer.innerHTML = '';
     job.tags.forEach(tag => {
@@ -196,7 +295,7 @@ function updateJobTags(jobDiv) {
 function updateBulletTags(bulletDiv) {
     const bulletId = bulletDiv.dataset.bulletId;
     const tagsContainer = bulletDiv.querySelector('.bullet-tags');
-    const bullet = resumeData.bulletPoints[bulletId];
+    const bullet = state.currentResume.bulletPoints[bulletId];
 
     tagsContainer.innerHTML = '';
     bullet.tags.forEach(tag => {
@@ -219,11 +318,11 @@ function addJobTag(jobId) {
     const tag = prompt('Enter tag (e.g., "Frontend", "Management"):');
     if (!tag) return;
 
-    if (!resumeData.tags.includes(tag)) {
-        resumeData.tags.push(tag);
+    if (!state.tags.includes(tag)) {
+        state.tags.push(tag);
     }
 
-    const job = resumeData.jobs[jobId];
+    const job = state.currentResume.jobs[jobId];
     if (!job.tags.includes(tag)) {
         job.tags.push(tag);
         const jobDiv = document.querySelector(`.job[data-job-id="${jobId}"]`);
@@ -236,11 +335,11 @@ function addBulletTag(bulletId) {
     const tag = prompt('Enter tag (e.g., "Technical", "Leadership"):');
     if (!tag) return;
 
-    if (!resumeData.tags.includes(tag)) {
-        resumeData.tags.push(tag);
+    if (!state.tags.includes(tag)) {
+        state.tags.push(tag);
     }
 
-    const bullet = resumeData.bulletPoints[bulletId];
+    const bullet = state.currentResume.bulletPoints[bulletId];
     if (!bullet.tags.includes(tag)) {
         bullet.tags.push(tag);
         const bulletDiv = document.querySelector(`.bullet-point[data-bullet-id="${bulletId}"]`);
@@ -271,7 +370,7 @@ function moveJob(button, direction) {
     }
 
     // Update only the current variation's job order
-    resumeData.variations[currentVariation].jobOrder =
+    state.variations[state.currentVariation].jobOrder =
         Array.from(container.children)
             .map(jobDiv => jobDiv.dataset.jobId);
 
@@ -303,22 +402,22 @@ function duplicateBullet(button) {
 
     // Create new bullet point data
     const newBulletId = generateId();
-    const originalBullet = resumeData.bulletPoints[originalBulletId];
+    const originalBullet = state.currentResume.bulletPoints[originalBulletId];
 
     // Copy the original bullet's text
-    resumeData.bulletPoints[newBulletId] = {
+    state.currentResume.bulletPoints[newBulletId] = {
         id: newBulletId,
         text: originalBullet.text
     };
 
     // Insert the new bullet ID after the original one in the job's bulletPoints array
-    const job = resumeData.jobs[jobId];
+    const job = state.currentResume.jobs[jobId];
     const originalIndex = job.bulletPoints.indexOf(originalBulletId);
     job.bulletPoints.splice(originalIndex + 1, 0, newBulletId);
 
     // Copy the visibility state from the original bullet
-    resumeData.variations[currentVariation].selectedBullets[newBulletId] =
-        resumeData.variations[currentVariation].selectedBullets[originalBulletId] || false;
+    state.variations[state.currentVariation].selectedBullets[newBulletId] =
+        state.variations[state.currentVariation].selectedBullets[originalBulletId] || false;
 
     // Create and insert the new bullet point UI element
     const template = document.getElementById('bullet-template');
@@ -330,17 +429,17 @@ function duplicateBullet(button) {
     const checkbox = newBulletDiv.querySelector('input[type="checkbox"]');
 
     textArea.value = originalBullet.text;
-    checkbox.checked = resumeData.variations[currentVariation].selectedBullets[newBulletId];
+    checkbox.checked = state.variations[state.currentVariation].selectedBullets[newBulletId];
 
     // Add event listeners
     textArea.addEventListener('input', () => {
-        resumeData.bulletPoints[newBulletId].text = textArea.value;
+        state.currentResume.bulletPoints[newBulletId].text = textArea.value;
         autoResizeTextarea(textArea);
         updateResume();
     });
 
     checkbox.addEventListener('change', () => {
-        resumeData.variations[currentVariation].selectedBullets[newBulletId] = checkbox.checked;
+        state.variations[state.currentVariation].selectedBullets[newBulletId] = checkbox.checked;
         updateResume();
     });
 
@@ -363,7 +462,7 @@ function deleteBullet(button) {
     }
 
     // Remove bullet from job's bulletPoints array
-    const job = resumeData.jobs[jobId];
+    const job = state.currentResume.jobs[jobId];
     if (job) {
         const index = job.bulletPoints.indexOf(bulletId);
         if (index > -1) {
@@ -372,10 +471,10 @@ function deleteBullet(button) {
     }
 
     // Remove bullet from master list
-    delete resumeData.bulletPoints[bulletId];
+    delete state.currentResume.bulletPoints[bulletId];
 
     // Remove bullet from selected bullets in all variations
-    Object.values(resumeData.variations).forEach(variation => {
+    Object.values(state.variations).forEach(variation => {
         delete variation.selectedBullets[bulletId];
     });
 
@@ -384,13 +483,17 @@ function deleteBullet(button) {
     updateResume();
 }
 
-function loadVariation(variationId = null) {
-    if (!variationId) {
-        variationId = document.getElementById('variationSelect').value;
+function loadVariation(variationId) {
+    console.log('loadVariation', variationId);
+    if (!variationId || !state.variations[variationId]) {
+        console.error('Invalid variation ID:', variationId);
+        return;
     }
 
+    state.currentVariation = variationId;
+    const variation = state.variations[variationId];
+
     // Update variant name in toolbar
-    const variation = resumeData.variations[variationId];
     document.querySelector('.variant-name').textContent = variation.name;
 
     // Update theme and spacing
@@ -409,28 +512,12 @@ function loadVariation(variationId = null) {
     bioTextarea.value = variation.bio || '';
     autoResizeTextarea(bioTextarea);
 
-    // Update jobs
-    const jobsContainer = document.getElementById('jobsContainer');
-    jobsContainer.innerHTML = '';
-
-    // Load jobs in the correct order from the variation's jobOrder
-    if (variation && variation.jobOrder) {
-        // Important: Set currentVariation after clearing the container but before adding jobs
-        currentVariation = variationId;
-
-        variation.jobOrder.forEach(jobId => {
-            const job = resumeData.jobs[jobId];
-            if (job) {
-                addJob(job);
-            }
-        });
-    }
-
-    // Update checkbox states
+    // Update checkbox states based on visibility
     document.querySelectorAll('.bullet-point').forEach(bulletDiv => {
         const bulletId = bulletDiv.dataset.bulletId;
         const checkbox = bulletDiv.querySelector('input[type="checkbox"]');
-        checkbox.checked = variation.selectedBullets[bulletId] || false;
+        const bulletPoint = variation.bulletPoints.find(bp => bp.bullet_point_id === bulletId);
+        checkbox.checked = bulletPoint ? bulletPoint.is_visible : true;
     });
 
     updateResume();
@@ -442,64 +529,116 @@ function updateResume() {
     resumeContent.innerHTML = '';
 
     // Update personal info in state
-    resumeData.name = document.getElementById('name').value.trim();
-    resumeData.contact = document.getElementById('contact').value.trim();
-    resumeData.variations[currentVariation].bio = document.getElementById('bio').value.trim();
+    state.currentResume.full_name = document.getElementById('name').value.trim();
+    state.currentResume.contact_info = document.getElementById('contact').value.trim();
+
+    if (!state.currentVariation || !state.variations[state.currentVariation]) {
+        return;
+    }
+
+    console.log('Current Resume State:', {
+        sections: state.currentResume.sections,
+        jobs: state.currentResume.jobs,
+        bulletPoints: state.currentResume.bulletPoints
+    });
+
+    const variation = state.variations[state.currentVariation];
+    variation.bio = document.getElementById('bio').value.trim();
 
     // Generate resume content
     let contentHTML = '';
 
     // Add personal info header
-    const currentBio = resumeData.variations[currentVariation].bio;
-    if (resumeData.name || resumeData.contact || currentBio) {
+    if (state.currentResume.full_name || state.currentResume.contact_info || variation.bio) {
         contentHTML += `<div class='resume-header'>`;
-        if (resumeData.name) contentHTML += `<h1>${resumeData.name}</h1>`;
-        if (resumeData.contact) contentHTML += `<p>${resumeData.contact}</p>`;
-        if (currentBio) contentHTML += `<p>${currentBio}</p>`;
+        if (state.currentResume.full_name) contentHTML += `<h1>${state.currentResume.full_name}</h1>`;
+        if (state.currentResume.contact_info) contentHTML += `<p>${state.currentResume.contact_info}</p>`;
+        if (variation.bio) contentHTML += `<p>${variation.bio}</p>`;
         contentHTML += `</div>`;
     }
 
-    // Generate jobs and bullet points
-    resumeData.variations[currentVariation].jobOrder.forEach(jobId => {
-        const job = resumeData.jobs[jobId];
-        if (!job || !job.title) return;
+    // Process sections in order
+    state.currentResume.sections
+        .sort((a, b) => a.order_index - b.order_index)
+        .forEach(section => {
+            console.log('Processing section:', section);
+            let sectionHasVisibleContent = false;
+            let sectionHTML = `<div class='resume-section' id="preview-section-${section.id}">
+                              <h2>${section.name}</h2><div class="section-content">`;
 
-        // Get bullet points in their original order
-        const selectedBullets = [...job.bulletPoints] // Create a copy to avoid modifying original
-            .map(bulletId => resumeData.bulletPoints[bulletId])
-            .filter(bullet =>
-                bullet &&
-                bullet.text &&
-                resumeData.variations[currentVariation].selectedBullets[bullet.id]
-            );
+            // Get jobs for this section
+            const sectionJobs = state.currentResume.jobs
+                .filter(job => {
+                    console.log('Comparing job section_id:', job.section_id, 'with section.id:', section.id);
+                    return job.section_id === section.id;
+                })
+                .sort((a, b) => a.order_index - b.order_index);
 
-        if (selectedBullets.length > 0) {
-            contentHTML += `<div class='resume-section' id="preview-job-${jobId}"><h3 style="cursor: pointer">${job.title}</h3>`;
-            contentHTML += `<ul class="resume-bullet-points">`;
-            selectedBullets.forEach(bullet => {
-                contentHTML += `<li id="preview-bullet-${bullet.id}" style="cursor: pointer">${bullet.text}</li>`;
+            console.log('Jobs for section:', sectionJobs);
+
+            sectionJobs.forEach(job => {
+                // Get visible bullet points for this job
+                const visibleBullets = state.currentResume.bulletPoints
+                    .filter(bullet => {
+                        console.log('Comparing bullet job_id:', bullet.job_id, 'with job.id:', job.id);
+                        return bullet.job_id === job.id;
+                    })
+                    .filter(bullet => {
+                        const bulletVisibility = variation.bulletPoints
+                            .find(bp => {
+                                console.log('Comparing bullet_point_id:', bp.bullet_point_id, 'with bullet.id:', bullet.id);
+                                return bp.bullet_point_id === bullet.id;
+                            });
+                        return bulletVisibility?.is_visible;
+                    })
+                    .sort((a, b) => a.order_index - b.order_index);
+
+                console.log('Visible bullets for job:', visibleBullets);
+
+                if (visibleBullets.length > 0) {
+                    sectionHasVisibleContent = true;
+                    sectionHTML += `<div class='resume-job' id="preview-job-${job.id}">`;
+                    sectionHTML += `<h3 style="cursor: pointer">${job.title}</h3>`;
+                    if (job.company) {
+                        sectionHTML += `<h4>${job.company}</h4>`;
+                    }
+                    if (job.start_date || job.end_date) {
+                        sectionHTML += `<p class="job-dates">`;
+                        if (job.start_date) sectionHTML += formatDate(job.start_date);
+                        if (job.start_date && job.end_date) sectionHTML += ' - ';
+                        if (job.end_date) sectionHTML += formatDate(job.end_date);
+                        sectionHTML += `</p>`;
+                    }
+                    sectionHTML += `<ul class="resume-bullet-points">`;
+                    visibleBullets.forEach(bullet => {
+                        sectionHTML += `<li id="preview-bullet-${bullet.id}" style="cursor: pointer">${bullet.content}</li>`;
+                    });
+                    sectionHTML += `</ul></div>`;
+                }
             });
-            contentHTML += `</ul></div>`;
-        }
-    });
+
+            sectionHTML += `</div></div>`;
+
+            if (sectionHasVisibleContent) {
+                contentHTML += sectionHTML;
+            }
+        });
 
     resumeContent.innerHTML = contentHTML;
 
     // Add click handlers to jobs and bullet points in the preview
-    document.querySelectorAll('.resume-section').forEach(section => {
-        const jobId = section.id.replace('preview-job-', '');
-        section.querySelector('h3').addEventListener('click', () => {
+    document.querySelectorAll('.resume-job h3').forEach(jobHeader => {
+        const jobId = jobHeader.closest('.resume-job').id.replace('preview-job-', '');
+        jobHeader.addEventListener('click', () => {
             const sidebarElement = document.querySelector(`.job[data-job-id="${jobId}"]`);
             if (sidebarElement) {
                 const headerHeight = document.querySelector('#sidebar h2').offsetHeight;
                 const sidebar = document.querySelector('#sidebar');
                 sidebar.scrollTop = sidebarElement.offsetTop - headerHeight - 10;
-                // Add delay before focusing
                 setTimeout(() => {
                     const titleInput = sidebarElement.querySelector('.job-title');
                     if (titleInput) {
                         titleInput.focus();
-                        // Set cursor to start of input
                         titleInput.setSelectionRange(0, 0);
                     }
                 }, 100);
@@ -522,6 +661,12 @@ function updateResume() {
             }
         });
     });
+}
+
+function formatDate(dateStr) {
+    if (!dateStr) return '';
+    const date = new Date(dateStr);
+    return date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
 }
 
 function initSidebarResize() {
@@ -555,7 +700,156 @@ function initSidebarResize() {
     });
 }
 
-function loadResume() {
+// Show/hide modal
+function showAuthModal() {
+    authModal.style.display = 'block';
+}
+
+function hideAuthModal() {
+    authModal.style.display = 'none';
+    document.getElementById('loginError').textContent = '';
+    document.getElementById('signupError').textContent = '';
+}
+
+// Close modal when clicking outside
+window.onclick = function (event) {
+    if (event.target === authModal) {
+        hideAuthModal();
+    }
+};
+
+closeBtn.onclick = hideAuthModal;
+
+// Tab switching
+authTabs.forEach(tab => {
+    tab.addEventListener('click', () => {
+        // Update active tab
+        authTabs.forEach(t => t.classList.remove('active'));
+        tab.classList.add('active');
+
+        // Show corresponding form
+        const formId = tab.dataset.tab + 'Form';
+        authForms.forEach(form => {
+            form.classList.toggle('active', form.id === formId);
+        });
+    });
+});
+
+// Auth functions
+async function signup() {
+    const email = document.getElementById('signupEmail').value;
+    const password = document.getElementById('signupPassword').value;
+    const errorElement = document.getElementById('signupError');
+
+    try {
+        const response = await fetch('/api/register', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email, password })
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            throw new Error(data.error || 'Failed to sign up');
+        }
+
+        state.userId = data.userId;
+        hideAuthModal();
+        loadResume(); // Load the default resume
+    } catch (error) {
+        errorElement.textContent = error.message;
+    }
+}
+
+async function login() {
+    const email = document.getElementById('loginEmail').value;
+    const password = document.getElementById('loginPassword').value;
+    const errorElement = document.getElementById('loginError');
+
+    try {
+        const response = await fetch('/api/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email, password })
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            throw new Error(data.error || 'Failed to log in');
+        }
+
+        state.userId = data.userId;
+        hideAuthModal();
+        loadResume(); // Load the user's resume
+    } catch (error) {
+        errorElement.textContent = error.message;
+    }
+}
+
+// Update saveResume function to check for authentication
+async function saveResume() {
+    fetch(`/api/resume/${state.userId}`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            id: state.currentResume.id,
+            title: state.currentResume.title,
+            full_name: document.getElementById('name').value,
+            contact_info: document.getElementById('contact').value,
+            sections: state.currentResume.sections,
+            jobs: state.currentResume.jobs,
+            bulletPoints: state.currentResume.bulletPoints,
+            variations: state.variations
+        })
+    })
+        .then(response => response.json())
+        .then(data => {
+            clearUnsavedChanges();
+            alert('Resume saved successfully!');
+        })
+        .catch(error => {
+            console.error('Error saving resume:', error);
+            alert('Failed to save resume');
+        });
+}
+
+// Initialize default empty state
+function createDefaultState() {
+    const defaultVariationId = generateId();
+    return {
+        currentResume: {
+            id: generateId(),
+            title: 'My Resume',
+            full_name: '',
+            contact_info: '',
+            sections: [],
+            jobs: [],
+            bulletPoints: []
+        },
+        variations: {
+            [defaultVariationId]: {
+                id: defaultVariationId,
+                name: 'Default',
+                bio: '',
+                theme: 'default',
+                spacing: 'normal',
+                bulletPoints: []
+            }
+        },
+        currentVariation: defaultVariationId,
+        isDirty: false
+    };
+}
+
+// Update loadResume function to work with authentication
+async function loadResume() {
+    // Initialize sidebar resize functionality
+    initSidebarResize();
+
     // Check if required elements exist before proceeding
     const variationSelect = document.getElementById('variationSelect');
     const nameInput = document.getElementById('name');
@@ -568,156 +862,122 @@ function loadResume() {
         return;
     }
 
-    // Initialize sidebar resize functionality
-    initSidebarResize();
+    try {
+        const response = await fetch(`/api/resume/${state.userId}`);
+        if (!response.ok) {
+            throw new Error('Failed to load resume');
+        }
 
-    fetch('/api/resume')
-        .then(res => res.json())
-        .then(data => {
-            // Initialize or migrate data structure
-            if (!data.variations) {
-                // If old format, migrate the jobs to default variation
-                const oldJobs = data.jobs || [];
-                const migratedJobs = {};
-                const migratedBulletPoints = {};
-                const jobOrder = [];
-                const selectedBullets = {};
+        const data = await response.json();
+        console.log('Loaded data:', data);
 
-                oldJobs.forEach((job, index) => {
-                    const jobId = generateId();
-                    jobOrder.push(jobId);
+        // Ensure arrays are unique by ID
+        if (data.sections) {
+            data.sections = Array.from(new Map(data.sections.map(s => [s.id, s])).values());
+        }
+        if (data.jobs) {
+            data.jobs = Array.from(new Map(data.jobs.map(j => [j.id, j])).values());
+        }
+        if (data.bulletPoints) {
+            data.bulletPoints = Array.from(new Map(data.bulletPoints.map(b => [b.id, b])).values());
+        }
 
-                    // Migrate job data
-                    migratedJobs[jobId] = {
-                        id: jobId,
-                        title: job.title || '',
-                        bulletPoints: [] // Initialize empty array
-                    };
+        state.currentResume = data;
+        state.variations = data.variations;
 
-                    // Migrate bullet points
-                    if (job.bulletPoints && Array.isArray(job.bulletPoints)) {
-                        job.bulletPoints.forEach(bp => {
-                            const bulletId = generateId();
-                            migratedBulletPoints[bulletId] = {
-                                id: bulletId,
-                                text: bp.text || ''
-                            };
-                            // Add to job's bullet points array
-                            migratedJobs[jobId].bulletPoints.push(bulletId);
-                            // Mark as selected if it was active
-                            selectedBullets[bulletId] = bp.active || false;
-                        });
-                    }
-                });
+        // Set current variation to first one if not set
+        if (!state.currentVariation && Object.keys(data.variations).length > 0) {
+            state.currentVariation = Object.keys(data.variations)[0];
+        }
 
-                data = {
-                    name: data.name || '',
-                    contact: data.contact || '',
-                    jobs: migratedJobs,
-                    bulletPoints: migratedBulletPoints,
-                    variations: {
-                        default: {
-                            name: 'Default',
-                            bio: data.bio || '', // Migrate bio to default variation
-                            jobOrder: jobOrder,
-                            selectedBullets: selectedBullets
-                        }
-                    }
-                };
-            } else {
-                // Ensure all variations have a bio field
-                Object.values(data.variations).forEach(variation => {
-                    if (!('bio' in variation)) {
-                        variation.bio = data.bio || ''; // Migrate from root bio if it exists
-                    }
-                });
-                // Remove root bio if it exists
-                delete data.bio;
-            }
-
-            // Ensure all jobs have bulletPoints array
-            if (data.jobs) {
-                Object.values(data.jobs).forEach(job => {
-                    if (!job.bulletPoints) {
-                        job.bulletPoints = [];
-                    }
-                });
-            }
-
-            resumeData = data;
-
-            // Set personal info
-            document.getElementById('name').value = data.name || '';
-            document.getElementById('contact').value = data.contact || '';
-
-            // Setup variations dropdown
-            const variationSelect = document.getElementById('variationSelect');
-            variationSelect.innerHTML = ''; // Clear existing options
-
-            // Ensure at least default variation exists
-            if (!resumeData.variations.default) {
-                resumeData.variations.default = {
-                    name: 'Default',
-                    bio: '',
-                    jobOrder: [],
-                    selectedBullets: {},
-                    theme: 'default',
-                    spacing: 'normal'
-                };
-            }
-
-            Object.entries(resumeData.variations).forEach(([id, variation]) => {
-                const option = document.createElement('option');
-                option.value = id;
-                option.textContent = variation.name;
-                variationSelect.appendChild(option);
-            });
-
-            // Load default variation
-            loadVariation('default');
-            clearUnsavedChanges();
-        })
-        .catch(err => {
-            console.error("Failed to load resume data:", err);
-            // Initialize with empty default state if load fails
-            resumeData = {
-                name: '',
-                contact: '',
-                jobs: {},
-                bulletPoints: {},
-                variations: {
-                    default: {
-                        name: 'Default',
-                        bio: '',
-                        jobOrder: [],
-                        selectedBullets: {},
-                        theme: 'default',
-                        spacing: 'normal'
-                    }
-                }
-            };
-            loadVariation('default');
-            clearUnsavedChanges();
-        });
+        updateUI();
+        state.isDirty = false;
+    } catch (error) {
+        console.error('Error loading resume:', error);
+        // Initialize with default state if load fails
+        Object.assign(state, createDefaultState());
+        updateUI();
+    }
 }
 
-function saveResume() {
-    fetch('/api/resume', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(resumeData)
-    })
-        .then(response => response.json())
-        .then(data => {
-            clearUnsavedChanges();
-            alert('Resume saved successfully!');
-        })
-        .catch(error => {
-            console.error('Error saving resume:', error);
-            alert('Failed to save resume');
+// Update updateUI to use skipStateUpdate
+function updateUI() {
+    // Set personal info
+    document.getElementById('name').value = state.currentResume.full_name || '';
+    document.getElementById('contact').value = state.currentResume.contact_info || '';
+
+    // Setup variations dropdown
+    const variationSelect = document.getElementById('variationSelect');
+    variationSelect.innerHTML = ''; // Clear existing options
+
+    Object.entries(state.variations).forEach(([uuid, variation]) => {
+        const option = document.createElement('option');
+        option.value = uuid;
+        option.textContent = variation.name;
+        variationSelect.appendChild(option);
+    });
+
+    // Clear sections and jobs containers
+    document.getElementById('sectionsContainer').innerHTML = '';
+    document.getElementById('jobsContainer').innerHTML = '';
+
+    // Load sections
+    state.currentResume.sections
+        .sort((a, b) => a.order_index - b.order_index)
+        .forEach(section => {
+            // Create section UI
+            const sectionDiv = document.createElement('div');
+            sectionDiv.className = 'section';
+            sectionDiv.dataset.sectionId = section.id;
+
+            sectionDiv.innerHTML = `
+                <div class="section-header">
+                    <input type="text" class="section-name" value="${section.name}" placeholder="Section Name">
+                    <div class="section-controls">
+                        <button onclick="moveSection(this, 'up')" title="Move Up">↑</button>
+                        <button onclick="moveSection(this, 'down')" title="Move Down">↓</button>
+                        <button onclick="deleteSection(this)" class="delete-section" title="Delete Section">×</button>
+                    </div>
+                </div>
+            `;
+
+            // Add event listeners
+            const nameInput = sectionDiv.querySelector('.section-name');
+            nameInput.addEventListener('input', () => {
+                section.name = nameInput.value;
+                updateResume();
+            });
+
+            // Add to container
+            document.getElementById('sectionsContainer').appendChild(sectionDiv);
+
+            // Load jobs for this section
+            const sectionJobs = state.currentResume.jobs
+                .filter(job => job.section_id === section.id)
+                .sort((a, b) => a.order_index - b.order_index);
+
+            sectionJobs.forEach(job => {
+                const jobDiv = addJob(job, true); // Skip state update since job is already in state
+
+                // Add bullet points for this job
+                const bulletContainer = jobDiv.querySelector('.bulletPointsContainer');
+                const jobBullets = state.currentResume.bulletPoints
+                    .filter(bp => bp.job_id === job.id)
+                    .sort((a, b) => a.order_index - b.order_index);
+
+                jobBullets.forEach(bullet => {
+                    addBulletPoint(bulletContainer, bullet, true); // Skip state update since bullet is already in state
+                });
+            });
         });
+
+    // Load current variation
+    if (state.currentVariation) {
+        loadVariation(state.currentVariation);
+    }
+
+    updateResume();
+    clearUnsavedChanges();
 }
 
 function deleteJob(buttonOrEvent) {
@@ -734,7 +994,7 @@ function deleteJob(buttonOrEvent) {
         const jobId = jobDiv.dataset.jobId;
 
         // Remove job from all variations' jobOrder arrays
-        Object.values(resumeData.variations).forEach(variation => {
+        Object.values(state.variations).forEach(variation => {
             const index = variation.jobOrder.indexOf(jobId);
             if (index > -1) {
                 variation.jobOrder.splice(index, 1);
@@ -742,20 +1002,20 @@ function deleteJob(buttonOrEvent) {
         });
 
         // Remove all bullet points associated with this job
-        const job = resumeData.jobs[jobId];
+        const job = state.currentResume.jobs[jobId];
         if (job) {
             job.bulletPoints.forEach(bulletId => {
                 // Remove bullet from master list
-                delete resumeData.bulletPoints[bulletId];
+                delete state.currentResume.bulletPoints[bulletId];
                 // Remove from selected bullets in all variations
-                Object.values(resumeData.variations).forEach(v => {
+                Object.values(state.variations).forEach(v => {
                     delete v.selectedBullets[bulletId];
                 });
             });
         }
 
         // Remove job from master list
-        delete resumeData.jobs[jobId];
+        delete state.currentResume.jobs[jobId];
 
         // Remove from UI
         jobDiv.remove();
@@ -992,9 +1252,9 @@ async function exportToPDF() {
         const downloadUrl = URL.createObjectURL(pdfBlob);
 
         // Get name, variation, and theme for filename
-        const fullName = resumeData.name || 'Resume';
+        const fullName = state.currentResume.name || 'Resume';
         const currentVariation = document.getElementById('variationSelect').value;
-        const variationName = resumeData.variations[currentVariation]?.name || 'Default';
+        const variationName = state.variations[currentVariation]?.name || 'Default';
 
         // Create filename: "Full Name - Variation - Theme.pdf"
         // Replace any invalid filename characters with dashes
@@ -1033,7 +1293,7 @@ function changeTheme() {
     document.documentElement.setAttribute('data-theme', selectedTheme);
 
     // Save theme preference to current variation
-    resumeData.variations[currentVariation].theme = selectedTheme;
+    state.variations[state.currentVariation].theme = selectedTheme;
     markUnsavedChanges();
 }
 
@@ -1045,7 +1305,7 @@ function changeSpacing() {
     currentSpacing = selectedSpacing;
 
     // Save spacing preference to current variation
-    resumeData.variations[currentVariation].spacing = selectedSpacing;
+    state.variations[state.currentVariation].spacing = selectedSpacing;
     markUnsavedChanges();
 }
 
@@ -1056,3 +1316,72 @@ window.loadResume = function () {
         originalLoadResume();
     }
 };
+
+// Add new section-related functions
+function moveSection(button, direction) {
+    const sectionDiv = button.closest('.section');
+    const container = sectionDiv.parentElement;
+    const sections = Array.from(container.children);
+    const index = sections.indexOf(sectionDiv);
+    const sectionId = sectionDiv.dataset.sectionId;
+
+    if (direction === 'up' && index > 0) {
+        container.insertBefore(sectionDiv, sections[index - 1]);
+        sectionDiv.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    } else if (direction === 'down' && index < sections.length - 1) {
+        container.insertBefore(sectionDiv, sections[index + 1].nextElementSibling);
+        sectionDiv.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+
+    // Update order_index for all sections
+    Array.from(container.children).forEach((div, i) => {
+        const section = state.currentResume.sections.find(s => s.id === div.dataset.sectionId);
+        if (section) {
+            section.order_index = i;
+        }
+    });
+
+    updateResume();
+}
+
+function deleteSection(button) {
+    const sectionDiv = button.closest('.section');
+    const sectionId = sectionDiv.dataset.sectionId;
+
+    if (!confirm("WARNING: This will delete the section and all its jobs permanently. Are you sure?")) {
+        return;
+    }
+
+    // Remove all jobs in this section
+    const jobsToRemove = state.currentResume.jobs.filter(job => job.section_id === sectionId);
+    jobsToRemove.forEach(job => {
+        // Remove all bullet points for this job
+        const bulletPoints = state.currentResume.bulletPoints.filter(bp => bp.job_id === job.id);
+        bulletPoints.forEach(bp => {
+            const index = state.currentResume.bulletPoints.indexOf(bp);
+            if (index > -1) {
+                state.currentResume.bulletPoints.splice(index, 1);
+            }
+        });
+
+        // Remove job
+        const index = state.currentResume.jobs.indexOf(job);
+        if (index > -1) {
+            state.currentResume.jobs.splice(index, 1);
+        }
+    });
+
+    // Remove section from state
+    const sectionIndex = state.currentResume.sections.findIndex(s => s.id === sectionId);
+    if (sectionIndex > -1) {
+        state.currentResume.sections.splice(sectionIndex, 1);
+    }
+
+    // Remove from UI
+    sectionDiv.remove();
+    updateResume();
+}
+
+// Add section movement functions to window
+window.moveSection = moveSection;
+window.deleteSection = deleteSection;

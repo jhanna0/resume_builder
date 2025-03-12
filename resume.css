@@ -161,7 +161,24 @@
     margin-bottom: 0;
 }
 
-.resume-section h3 {
+.resume-section h2 {
+    font-size: 24px;
+    font-weight: bold;
+    color: var(--theme-heading);
+    margin-bottom: var(--space-4);
+    font-family: var(--font-serif);
+}
+
+/* Resume preview job styles */
+.resume-job {
+    margin-bottom: var(--resume-section-margin);
+}
+
+.resume-job:last-child {
+    margin-bottom: 0;
+}
+
+.resume-job h3 {
     font-size: 20px;
     font-weight: bold;
     color: var(--theme-primary);
@@ -171,8 +188,22 @@
     transition: color 0.2s;
 }
 
-.resume-section h3:hover {
+.resume-job h3:hover {
     color: var(--theme-secondary);
+}
+
+.resume-job h4 {
+    font-size: 16px;
+    color: var(--theme-text);
+    margin-bottom: var(--space-2);
+    font-family: var(--font-serif);
+}
+
+.resume-job .job-dates {
+    font-size: 14px;
+    color: var(--theme-text);
+    margin-bottom: var(--space-3);
+    font-style: italic;
 }
 
 /* Resume preview bullet points */

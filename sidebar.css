@@ -357,3 +357,68 @@ textarea {
     width: 100%;
     box-sizing: border-box;
 }
+
+.sections-section {
+    margin-bottom: 20px;
+}
+
+.section {
+    background: var(--bg-light);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    margin-bottom: 10px;
+    padding: 10px;
+}
+
+.section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+}
+
+.section-name {
+    flex: 1;
+    font-size: 1em;
+    padding: 4px 8px;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    background: var(--bg-input);
+}
+
+.section-controls {
+    display: flex;
+    gap: 4px;
+}
+
+.section-controls button {
+    padding: 4px 8px;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    background: var(--bg-button);
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.section-controls button:hover {
+    background: var(--bg-button-hover);
+}
+
+.delete-section {
+    color: var(--color-danger);
+}
+
+#addSectionBtn {
+    width: 100%;
+    margin-bottom: 10px;
+    padding: 8px;
+    background: var(--bg-button);
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+#addSectionBtn:hover {
+    background: var(--bg-button-hover);
+}
