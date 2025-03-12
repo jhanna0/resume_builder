@@ -1,13 +1,11 @@
 {
   "name": "Alex Morgan",
   "contact": "alex.morgan@email.com | (555) 123-4567 | linkedin.com/in/alexmorgan",
-  "bio": "Senior software engineer with 8+ years of experience in full-stack development, distributed systems, and team leadership.",
   "jobs": {
     "job_1": {
       "id": "job_1",
       "title": "Senior Software Engineer at TechCorp",
       "bulletPoints": [
-        "m81vj6qhtn3w2fuy9gc",
         "bullet_1_2",
         "bullet_1_3",
         "bullet_1_4",
@@ -46,136 +44,90 @@
         "bullet_4_3",
         "bullet_4_4"
       ]
-    },
-    "m81vjc1xacms6n8qid": {
-      "id": "m81vjc1xacms6n8qid",
-      "title": "Cool!",
-      "bulletPoints": [
-        "m81vjeikshe80azag4",
-        "m82g90hc64dgryp2l22",
-        "m82g90e3vk0pbjuxqnj",
-        "m82g90aemebcdc9w0y9",
-        "m82g906o1cbkrtgaz2n",
-        "m82g902alreoodr1xvr",
-        "m82g8zhdpq1j92i9jbg"
-      ]
     }
   },
   "bulletPoints": {
     "bullet_1_2": {
       "id": "bullet_1_2",
-      "text": "Reduced system latency by 40% through implementation of Redis caching and query optimization"
+      "text": "Engineered high-performance Redis caching solution, reducing system latency by 40% across multiple services"
     },
     "bullet_1_3": {
       "id": "bullet_1_3",
-      "text": "Architected and deployed Kubernetes clusters across multiple regions for high availability"
+      "text": "Led Kubernetes migration across multiple regions, improving system reliability and uptime by 30%"
     },
     "bullet_1_4": {
       "id": "bullet_1_4",
-      "text": "Implemented CI/CD pipelines reducing deployment time from 2 hours to 15 minutes"
+      "text": "Designed and implemented CI/CD pipelines, reducing deployment time from 2 hours to 15 minutes"
     },
     "bullet_1_5": {
       "id": "bullet_1_5",
-      "text": "Mentored 5 junior developers, leading to 3 promotions within the team"
+      "text": "Mentored and coached 5 junior developers, 3 of whom received promotions within 6 months"
     },
     "bullet_1_6": {
       "id": "bullet_1_6",
-      "text": "Spearheaded adoption of TypeScript across frontend applications, reducing bugs by 30%"
+      "text": "Introduced TypeScript across frontend applications, leading to a 30% decrease in bugs and 50% faster development"
     },
     "bullet_2_1": {
       "id": "bullet_2_1",
-      "text": "Developed real-time data visualization dashboard using React and D3.js"
+      "text": "Built real-time interactive data visualizations using React, Redux, and D3.js, enabling faster decision-making for the business"
     },
     "bullet_2_2": {
       "id": "bullet_2_2",
-      "text": "Implemented GraphQL API gateway consolidating multiple REST endpoints"
+      "text": "Developed a GraphQL API gateway to streamline data access, reducing request complexity by 50%"
     },
     "bullet_2_3": {
       "id": "bullet_2_3",
-      "text": "Built automated testing framework achieving 90% code coverage"
+      "text": "Created an automated testing framework with 90% code coverage, ensuring more robust and bug-free releases"
     },
     "bullet_2_4": {
       "id": "bullet_2_4",
-      "text": "Optimized database queries reducing average response time by 60%"
+      "text": "Optimized SQL queries, improving database response times by 60% and boosting application performance"
     },
     "bullet_2_5": {
       "id": "bullet_2_5",
-      "text": "Led migration from monolith to microservices architecture"
+      "text": "Led migration to microservices architecture, enhancing scalability and fault tolerance"
     },
     "bullet_3_1": {
       "id": "bullet_3_1",
-      "text": "Designed and implemented cloud-native applications using AWS services"
+      "text": "Architected cloud-native applications using AWS services, significantly reducing infrastructure costs"
     },
     "bullet_3_2": {
       "id": "bullet_3_2",
-      "text": "Reduced infrastructure costs by 45% through optimization of cloud resources"
+      "text": "Optimized cloud resource usage, resulting in a 45% reduction in operational costs"
     },
     "bullet_3_3": {
       "id": "bullet_3_3",
-      "text": "Implemented serverless architecture using AWS Lambda and API Gateway"
+      "text": "Implemented serverless architecture with AWS Lambda, improving scalability and reducing costs"
     },
     "bullet_3_4": {
       "id": "bullet_3_4",
-      "text": "Created automated disaster recovery system with 99.99% uptime"
+      "text": "Created a fully automated disaster recovery system with 99.99% uptime, ensuring business continuity"
     },
     "bullet_3_5": {
       "id": "bullet_3_5",
-      "text": "Developed event-driven architecture using Apache Kafka"
+      "text": "Built an event-driven architecture using Apache Kafka to ensure real-time data processing and high availability"
     },
     "bullet_4_1": {
       "id": "bullet_4_1",
-      "text": "Built responsive web applications using React and Material-UI"
+      "text": "Developed responsive, mobile-first web applications using React, TypeScript, and Material-UI"
     },
     "bullet_4_2": {
       "id": "bullet_4_2",
-      "text": "Improved application performance score from 65 to 95 on Lighthouse"
+      "text": "Improved Lighthouse performance score from 65 to 95, optimizing page load time and user experience"
     },
     "bullet_4_3": {
       "id": "bullet_4_3",
-      "text": "Implemented accessibility features achieving WCAG 2.1 AA compliance"
+      "text": "Integrated accessibility features to achieve WCAG 2.1 AA compliance, making apps more inclusive"
     },
     "bullet_4_4": {
       "id": "bullet_4_4",
-      "text": "Developed reusable component library used across multiple projects"
-    },
-    "m81vj6qhtn3w2fuy9gc": {
-      "id": "m81vj6qhtn3w2fuy9gc",
-      "text": "Cool!"
-    },
-    "m81vjeikshe80azag4": {
-      "id": "m81vjeikshe80azag4",
-      "text": "Nice"
-    },
-    "m82g8zhdpq1j92i9jbg": {
-      "id": "m82g8zhdpq1j92i9jbg",
-      "text": "Nice"
-    },
-    "m82g902alreoodr1xvr": {
-      "id": "m82g902alreoodr1xvr",
-      "text": "Nice"
-    },
-    "m82g906o1cbkrtgaz2n": {
-      "id": "m82g906o1cbkrtgaz2n",
-      "text": "Nice"
-    },
-    "m82g90aemebcdc9w0y9": {
-      "id": "m82g90aemebcdc9w0y9",
-      "text": "Nice"
-    },
-    "m82g90e3vk0pbjuxqnj": {
-      "id": "m82g90e3vk0pbjuxqnj",
-      "text": "Nice"
-    },
-    "m82g90hc64dgryp2l22": {
-      "id": "m82g90hc64dgryp2l22",
-      "text": "Nice"
+      "text": "Developed a reusable component library, reducing development time across multiple projects"
     }
   },
   "variations": {
     "default": {
       "name": "Full Stack",
       "jobOrder": [
-        "m81vjc1xacms6n8qid",
         "job_1",
         "job_2",
         "job_3",
@@ -191,16 +143,9 @@
         "bullet_3_1": true,
         "bullet_3_2": true,
         "bullet_4_1": true,
-        "bullet_4_2": true,
-        "m81vj6qhtn3w2fuy9gc": true,
-        "m81vjeikshe80azag4": true,
-        "m82g8zhdpq1j92i9jbg": true,
-        "m82g902alreoodr1xvr": true,
-        "m82g906o1cbkrtgaz2n": true,
-        "m82g90aemebcdc9w0y9": true,
-        "m82g90e3vk0pbjuxqnj": true,
-        "m82g90hc64dgryp2l22": true
-      }
+        "bullet_4_2": true
+      },
+      "bio": "Senior software engineer with 8+ years of experience in full-stack development, distributed systems, and team leadership, passionate about building scalable and high-performance applications."
     },
     "frontend": {
       "name": "Frontend Focus",
@@ -216,33 +161,34 @@
         "bullet_4_4": true,
         "bullet_1_6": false,
         "bullet_2_1": true
-      }
+      },
+      "bio": "Frontend developer with expertise in creating beautiful, user-centric web applications, focusing on performance and accessibility."
     },
     "backend": {
       "name": "Backend Focus",
       "jobOrder": [
         "job_3",
-        "job_1",
-        "job_7"
+        "job_1"
       ],
       "selectedBullets": {
         "bullet_3_1": true,
         "bullet_3_2": true,
         "bullet_1_2": true
-      }
+      },
+      "bio": "Backend engineer with a passion for building scalable, efficient systems using cloud-native technologies and microservices architecture."
     },
     "devops": {
       "name": "DevOps Focus",
       "jobOrder": [
         "job_1",
-        "job_3",
-        "job_7"
+        "job_3"
       ],
       "selectedBullets": {
         "bullet_1_3": true,
         "bullet_1_4": true,
         "bullet_3_3": true
-      }
+      },
+      "bio": "DevOps engineer with a focus on building continuous delivery pipelines, automating infrastructure, and optimizing cloud resource usage for improved scalability and cost-effectiveness."
     }
   }
 }

@@ -7,7 +7,6 @@
     <title>Resume Builder</title>
     <!-- Inter font -->
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/uuid/8.3.0/uuid.min.js"></script>
     <!-- 1) site.css for global styles -->
     <link rel="stylesheet" href="styles.css" />
     <!-- 2) sidebar.css for sidebar-only -->
@@ -16,7 +15,7 @@
     <link rel="stylesheet" href="resume.css" />
 </head>
 
-<body onload="loadResume()">
+<body>
     <!-- Sidebar -->
     <div id="sidebar">
         <div class="sidebar-resize-wrapper"></div>
@@ -38,6 +37,12 @@
                 <textarea id="bio" placeholder="Enter a short bio"
                     oninput="autoResizeTextarea(this); updateResume()"></textarea>
             </div>
+        </div>
+
+        <h2>Sections</h2>
+        <div class="sections-section">
+            <button id="addSectionBtn" onclick="addSection()">Add Section</button>
+            <div id="sectionsContainer"></div>
         </div>
 
         <h2>Job List</h2>
@@ -87,19 +92,32 @@
         </div>
     </template>
 
-    <script>
-        // Dynamically load the resume section only
-        function loadComponent(targetId, url) {
-            fetch(url)
-                .then(resp => resp.text())
-                .then(html => (document.getElementById(targetId).innerHTML = html))
-                .catch(err => console.error(`Failed to load ${url}:`, err));
-        }
+    <!-- Auth Modal -->
+    <div id="authModal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <div class="auth-tabs">
+                <button class="auth-tab active" data-tab="login">Login</button>
+                <button class="auth-tab" data-tab="signup">Sign Up</button>
+            </div>
+            <div id="loginForm" class="auth-form active">
+                <h2>Login</h2>
+                <input type="email" id="loginEmail" placeholder="Email" required>
+                <input type="password" id="loginPassword" placeholder="Password" required>
+                <button onclick="login()">Login</button>
+                <p class="error-message" id="loginError"></p>
+            </div>
+            <div id="signupForm" class="auth-form">
+                <h2>Sign Up</h2>
+                <input type="email" id="signupEmail" placeholder="Email" required>
+                <input type="password" id="signupPassword" placeholder="Password" required>
+                <button onclick="signup()">Sign Up</button>
+                <p class="error-message" id="signupError"></p>
+            </div>
+        </div>
+    </div>
 
-        loadComponent("resume", "resume.html");
-    </script>
-
-    <script src="script.js"></script>
+    <script type="module" src="script.js"></script>
 </body>
 
 </html>
