@@ -540,7 +540,7 @@ app.post('/api/generate-pdf', async (req, res) => {
             return getComputedStyle(document.documentElement).getPropertyValue('--resume-content-padding').trim();
         });
 
-        // Generate PDF with spacing-dependent margins
+        // Generate PDF with spacing-dependent margins and link handling
         const pdf = await page.pdf({
             format: 'A4',
             printBackground: true,

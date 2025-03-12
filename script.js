@@ -161,6 +161,60 @@ function addSection(sectionData = null) {
     return section;
 }
 
+// Helper function to check if a job is empty
+function isJobEmpty(job) {
+    // Check if job has no title and no bullet points
+    const hasTitle = job.title && job.title.trim().length > 0;
+    const hasBullets = state.currentResume.bulletPoints.some(bp =>
+        bp.job_id === job.id && bp.content && bp.content.trim().length > 0
+    );
+    return !hasTitle && !hasBullets;
+}
+
+// Update saveResume function to filter out empty jobs
+async function saveResume() {
+    // Filter out empty jobs before saving
+    const nonEmptyJobs = state.currentResume.jobs.filter(job => !isJobEmpty(job));
+
+    // If jobs were filtered out, update the state
+    if (nonEmptyJobs.length !== state.currentResume.jobs.length) {
+        state.currentResume.jobs = nonEmptyJobs;
+        // Also remove bullet points for removed jobs
+        state.currentResume.bulletPoints = state.currentResume.bulletPoints.filter(bp =>
+            nonEmptyJobs.some(job => job.id === bp.job_id)
+        );
+        // Update UI to reflect removed jobs
+        updateUI();
+    }
+
+    fetch(`/api/resume/${state.userId}`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            id: state.currentResume.id,
+            title: state.currentResume.title,
+            full_name: document.getElementById('name').value,
+            contact_info: document.getElementById('contact').value,
+            sections: state.currentResume.sections,
+            jobs: state.currentResume.jobs,
+            bulletPoints: state.currentResume.bulletPoints,
+            variations: state.variations
+        })
+    })
+        .then(response => response.json())
+        .then(data => {
+            clearUnsavedChanges();
+            alert('Resume saved successfully!');
+        })
+        .catch(error => {
+            console.error('Error saving resume:', error);
+            alert('Failed to save resume');
+        });
+}
+
+// Update addJob to prevent creating empty jobs if there's already an empty one in the section
 function addJob(jobData = null, skipStateUpdate = false, targetSectionId = null) {
     // If no sections exist, create one
     if (state.currentResume.sections.length === 0) {
@@ -170,6 +224,26 @@ function addJob(jobData = null, skipStateUpdate = false, targetSectionId = null)
     // Use provided targetSectionId or get from jobData
     if (!targetSectionId) {
         targetSectionId = jobData?.section_id || state.currentResume.sections[0].id;
+    }
+
+    // Check if there's already an empty job in this section
+    if (!jobData) {
+        const sectionJobs = state.currentResume.jobs.filter(j => j.section_id === targetSectionId);
+        const hasEmptyJob = sectionJobs.some(isJobEmpty);
+        if (hasEmptyJob) {
+            alert('Please fill out the existing empty job before adding a new one.');
+            // Find and focus the empty job's title input
+            const emptyJob = sectionJobs.find(isJobEmpty);
+            if (emptyJob) {
+                const emptyJobDiv = document.querySelector(`.job[data-job-id="${emptyJob.id}"]`);
+                if (emptyJobDiv) {
+                    const titleInput = emptyJobDiv.querySelector('.job-title');
+                    titleInput.focus();
+                    emptyJobDiv.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
+            }
+            return null;
+        }
     }
 
     // Get max order_index for jobs in this section and add 1, or 0 if no jobs exist
@@ -217,18 +291,37 @@ function addJob(jobData = null, skipStateUpdate = false, targetSectionId = null)
     const sectionDiv = document.querySelector(`.section[data-section-id="${job.section_id}"]`);
     const jobsContainer = sectionDiv.querySelector('.section-jobs');
 
-    // Add to container
-    jobsContainer.insertBefore(jobDiv, jobsContainer.firstChild);
+    // Add to container at the end (append) instead of the beginning
+    jobsContainer.appendChild(jobDiv);
 
     // If this is a new job, mark changes and scroll to it
     if (!jobData && !skipStateUpdate) {
         markUnsavedChanges();
         jobDiv.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        // Focus the title input
+        titleInput.focus();
     }
 
     return jobDiv;
 }
 
+// Update autoResizeTextarea function to be more robust
+function autoResizeTextarea(textarea) {
+    if (!textarea) return;
+
+    // Reset height to auto first to get the correct scrollHeight
+    textarea.style.height = 'auto';
+    // Set the height to match content
+    textarea.style.height = (textarea.scrollHeight) + 'px';
+}
+
+// Add function to resize all textareas in a container
+function autoResizeAllTextareas(container = document) {
+    const textareas = container.querySelectorAll('textarea');
+    textareas.forEach(autoResizeTextarea);
+}
+
+// Update addBulletPoint to ensure textarea is resized
 function addBulletPoint(containerOrButton, bulletData = null, skipStateUpdate = false) {
     let bulletContainer;
     if (containerOrButton.tagName === "BUTTON") {
@@ -314,6 +407,9 @@ function addBulletPoint(containerOrButton, bulletData = null, skipStateUpdate = 
 
     // Add to container at the end instead of the beginning
     bulletContainer.appendChild(bulletDiv);
+
+    // Ensure textarea is properly sized
+    autoResizeTextarea(textArea);
 
     // If this is a new bullet point, mark changes and scroll to it
     if (!bulletData && !skipStateUpdate) {
@@ -402,11 +498,6 @@ function addBulletTag(bulletId) {
         updateBulletTags(bulletDiv);
         updateResume();
     }
-}
-
-function autoResizeTextarea(textarea) {
-    textarea.style.height = 'auto';
-    textarea.style.height = textarea.scrollHeight + 'px';
 }
 
 function moveJob(button, direction) {
@@ -649,6 +740,18 @@ function updateResume() {
     const variation = state.variations[state.currentVariation];
     variation.bio = document.getElementById('bio').value.trim();
 
+    // Function to convert URLs to clickable links
+    function linkifyText(text) {
+        // URL pattern that matches common URL formats
+        const urlPattern = /(?:https?:\/\/)?(?:www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b(?:[-a-zA-Z0-9()@:%_\+.~#?&//=]*)/gi;
+
+        return text.replace(urlPattern, (url) => {
+            // Add https:// if protocol is missing
+            const fullUrl = url.startsWith('http') ? url : `https://${url}`;
+            return `<a href="${fullUrl}" target="_blank" rel="noopener noreferrer">${url}</a>`;
+        });
+    }
+
     // Generate resume content
     let contentHTML = '';
 
@@ -656,8 +759,8 @@ function updateResume() {
     if (state.currentResume.full_name || state.currentResume.contact_info || variation.bio) {
         contentHTML += `<div class='resume-header'>`;
         if (state.currentResume.full_name) contentHTML += `<h1>${state.currentResume.full_name}</h1>`;
-        if (state.currentResume.contact_info) contentHTML += `<p>${state.currentResume.contact_info}</p>`;
-        if (variation.bio) contentHTML += `<p>${variation.bio}</p>`;
+        if (state.currentResume.contact_info) contentHTML += `<p>${linkifyText(state.currentResume.contact_info)}</p>`;
+        if (variation.bio) contentHTML += `<p>${linkifyText(variation.bio)}</p>`;
         contentHTML += `</div>`;
     }
 
@@ -689,9 +792,9 @@ function updateResume() {
             if (visibleBullets.length > 0) {
                 sectionHasVisibleContent = true;
                 sectionHTML += `<div class='resume-job' id="preview-job-${job.id}">`;
-                sectionHTML += `<h3 style="cursor: pointer">${job.title}</h3>`;
+                sectionHTML += `<h3 style="cursor: pointer">${linkifyText(job.title)}</h3>`;
                 if (job.company) {
-                    sectionHTML += `<h4>${job.company}</h4>`;
+                    sectionHTML += `<h4>${linkifyText(job.company)}</h4>`;
                 }
                 if (job.start_date || job.end_date) {
                     sectionHTML += `<p class="job-dates">`;
@@ -702,7 +805,7 @@ function updateResume() {
                 }
                 sectionHTML += `<ul class="resume-bullet-points">`;
                 visibleBullets.forEach(bullet => {
-                    sectionHTML += `<li id="preview-bullet-${bullet.id}" style="cursor: pointer">${bullet.content}</li>`;
+                    sectionHTML += `<li id="preview-bullet-${bullet.id}" style="cursor: pointer">${linkifyText(bullet.content)}</li>`;
                 });
                 sectionHTML += `</ul></div>`;
             }
@@ -767,11 +870,32 @@ function initSidebarResize() {
     let startX;
     let startWidth;
 
+    // Add debounce function for performance
+    function debounce(func, wait) {
+        let timeout;
+        return function executedFunction(...args) {
+            const later = () => {
+                clearTimeout(timeout);
+                func(...args);
+            };
+            clearTimeout(timeout);
+            timeout = setTimeout(later, wait);
+        };
+    }
+
+    // Debounced version of autoResizeAllTextareas
+    const debouncedResize = debounce(() => {
+        autoResizeAllTextareas(sidebar);
+    }, 16); // ~60fps
+
     resizeHandle.addEventListener('mousedown', function (e) {
         isResizing = true;
         startX = e.pageX;
         startWidth = sidebar.offsetWidth;
         e.preventDefault(); // Prevent text selection
+
+        // Add resize class to improve performance during resize
+        sidebar.classList.add('resizing');
     });
 
     document.addEventListener('mousemove', function (e) {
@@ -780,6 +904,8 @@ function initSidebarResize() {
         const width = startWidth + (e.pageX - startX);
         if (width >= 360) { // Respect min-width
             sidebar.style.width = width + 'px';
+            // Resize textareas while dragging
+            debouncedResize();
         }
 
         // Prevent text selection while resizing
@@ -787,8 +913,17 @@ function initSidebarResize() {
     });
 
     document.addEventListener('mouseup', function () {
-        isResizing = false;
+        if (isResizing) {
+            isResizing = false;
+            // Remove resize class
+            sidebar.classList.remove('resizing');
+            // Final resize of textareas
+            autoResizeAllTextareas(sidebar);
+        }
     });
+
+    // Also handle window resize events
+    window.addEventListener('resize', debouncedResize);
 }
 
 // Show/hide modal
@@ -879,35 +1014,6 @@ async function login() {
     }
 }
 
-// Update saveResume function to check for authentication
-async function saveResume() {
-    fetch(`/api/resume/${state.userId}`, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-            id: state.currentResume.id,
-            title: state.currentResume.title,
-            full_name: document.getElementById('name').value,
-            contact_info: document.getElementById('contact').value,
-            sections: state.currentResume.sections,
-            jobs: state.currentResume.jobs,
-            bulletPoints: state.currentResume.bulletPoints,
-            variations: state.variations
-        })
-    })
-        .then(response => response.json())
-        .then(data => {
-            clearUnsavedChanges();
-            alert('Resume saved successfully!');
-        })
-        .catch(error => {
-            console.error('Error saving resume:', error);
-            alert('Failed to save resume');
-        });
-}
-
 // Initialize default empty state
 function createDefaultState() {
     const defaultVariationId = generateId();
@@ -991,7 +1097,7 @@ async function loadResume() {
     }
 }
 
-// Update updateUI to use skipStateUpdate
+// Update updateUI to resize all textareas after loading content
 function updateUI() {
     // Set personal info
     document.getElementById('name').value = state.currentResume.full_name || '';
@@ -1075,6 +1181,9 @@ function updateUI() {
     if (state.currentVariation) {
         loadVariation(state.currentVariation);
     }
+
+    // Ensure all textareas are properly sized
+    autoResizeAllTextareas();
 
     updateResume();
     clearUnsavedChanges();

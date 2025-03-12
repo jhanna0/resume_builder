@@ -138,7 +138,7 @@
 
 .resume-header h1 {
     margin: 0;
-    font-size: 32px;
+    font-size: var(--resume-name-size);
     font-weight: bold;
     color: var(--theme-heading);
     font-family: var(--font-serif);
@@ -147,8 +147,7 @@
 
 .resume-header p {
     margin: var(--space-2) 0;
-    font-size: 16px;
-    /* color: var(--neutral-600); */
+    font-size: var(--resume-contact-size);
     line-height: 1.5;
 }
 
@@ -162,7 +161,7 @@
 }
 
 .resume-section h2 {
-    font-size: 24px;
+    font-size: var(--resume-section-title-size);
     font-weight: bold;
     color: var(--theme-heading);
     margin-bottom: var(--space-4);
@@ -179,7 +178,7 @@
 }
 
 .resume-job h3 {
-    font-size: 20px;
+    font-size: var(--resume-job-title-size);
     font-weight: bold;
     color: var(--theme-primary);
     margin-bottom: var(--space-3);
@@ -193,14 +192,14 @@
 }
 
 .resume-job h4 {
-    font-size: 16px;
+    font-size: var(--resume-company-size);
     color: var(--theme-text);
     margin-bottom: var(--space-2);
     font-family: var(--font-serif);
 }
 
 .resume-job .job-dates {
-    font-size: 14px;
+    font-size: var(--resume-dates-size);
     color: var(--theme-text);
     margin-bottom: var(--space-3);
     font-style: italic;
@@ -214,9 +213,8 @@
 }
 
 .resume-bullet-points li {
-    font-size: 16px;
+    font-size: var(--resume-bullet-size);
     margin-bottom: var(--resume-bullet-margin);
-    /* color: var(--neutral-700); */
     line-height: 1.5;
     cursor: pointer;
     transition: color 0.2s;
@@ -359,6 +357,8 @@
     --theme-underline: #ff85b1;
     --theme-gradient-start: #ff4b91;
     --theme-gradient-end: #ff85b1;
+    --theme-link: #2563eb;
+    /* Add link color variable */
 
     /* Spacing variables - Normal by default */
     --resume-header-margin: 24px;
@@ -366,6 +366,15 @@
     --resume-bullet-margin: 12px;
     --resume-header-padding: 16px;
     --resume-content-padding: 20mm;
+
+    /* Font size variables - Normal by default */
+    --resume-name-size: 32px;
+    --resume-contact-size: 16px;
+    --resume-section-title-size: 24px;
+    --resume-job-title-size: 20px;
+    --resume-company-size: 16px;
+    --resume-dates-size: 14px;
+    --resume-bullet-size: 16px;
 }
 
 /* Spacing variations */
@@ -375,6 +384,15 @@
     --resume-bullet-margin: 16px;
     --resume-header-padding: 24px;
     --resume-content-padding: 15mm;
+
+    /* Larger font sizes for relaxed spacing */
+    --resume-name-size: 36px;
+    --resume-contact-size: 18px;
+    --resume-section-title-size: 28px;
+    --resume-job-title-size: 24px;
+    --resume-company-size: 18px;
+    --resume-dates-size: 16px;
+    --resume-bullet-size: 18px;
 }
 
 [data-spacing="normal"] {
@@ -383,14 +401,32 @@
     --resume-bullet-margin: 12px;
     --resume-header-padding: 16px;
     --resume-content-padding: 10mm;
+
+    /* Normal font sizes */
+    --resume-name-size: 32px;
+    --resume-contact-size: 16px;
+    --resume-section-title-size: 24px;
+    --resume-job-title-size: 20px;
+    --resume-company-size: 16px;
+    --resume-dates-size: 14px;
+    --resume-bullet-size: 16px;
 }
 
 [data-spacing="tight"] {
     --resume-header-margin: 16px;
     --resume-section-margin: 16px;
-    --resume-bullet-margin: 8px;
+    --resume-bullet-margin: 6px;
     --resume-header-padding: 12px;
     --resume-content-padding: 5mm;
+
+    /* Smaller font sizes for tight spacing */
+    --resume-name-size: 28px;
+    --resume-contact-size: 14px;
+    --resume-section-title-size: 20px;
+    --resume-job-title-size: 18px;
+    --resume-company-size: 14px;
+    --resume-dates-size: 12px;
+    --resume-bullet-size: 14px;
 }
 
 /* Classic Black & White theme */
@@ -403,6 +439,8 @@
     --theme-underline: #333333;
     --theme-gradient-start: #333333;
     --theme-gradient-end: #666666;
+    --theme-link: #1e40af;
+    /* Dark blue for classic theme */
 }
 
 /* Ocean Blue theme */
@@ -415,6 +453,8 @@
     --theme-underline: #4299e1;
     --theme-gradient-start: #2b6cb0;
     --theme-gradient-end: #4299e1;
+    --theme-link: #0284c7;
+    /* Light blue for ocean theme */
 }
 
 /* Forest Green theme */
@@ -427,6 +467,8 @@
     --theme-underline: #48bb78;
     --theme-gradient-start: #2f855a;
     --theme-gradient-end: #48bb78;
+    --theme-link: #2f855a;
+    /* Forest green for links */
 }
 
 /* Theme selector styles */
@@ -529,4 +571,31 @@
 .spacing-selector select:focus {
     border-color: white;
     outline: none;
+}
+
+/* Add link styles */
+#resumeContent a {
+    color: var(--theme-link);
+    text-decoration: none;
+    transition: color 0.2s ease;
+}
+
+#resumeContent a:hover {
+    color: var(--theme-secondary);
+    text-decoration: underline;
+}
+
+/* Ensure link styles are preserved in PDF */
+@media print {
+    #resumeContent a {
+        color: var(--theme-link) !important;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
+}
+
+.generating-pdf #resumeContent a {
+    color: var(--theme-link) !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
 }
