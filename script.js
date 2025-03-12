@@ -575,21 +575,17 @@ function deleteBullet(button) {
         return;
     }
 
-    // Remove bullet from job's bulletPoints array
-    const job = state.currentResume.jobs[jobId];
-    if (job) {
-        const index = job.bulletPoints.indexOf(bulletId);
-        if (index > -1) {
-            job.bulletPoints.splice(index, 1);
-        }
+    // Remove bullet from state
+    const bulletIndex = state.currentResume.bulletPoints.findIndex(b => b.id === bulletId);
+    if (bulletIndex > -1) {
+        state.currentResume.bulletPoints.splice(bulletIndex, 1);
     }
 
-    // Remove bullet from master list
-    delete state.currentResume.bulletPoints[bulletId];
-
-    // Remove bullet from selected bullets in all variations
+    // Remove bullet from all variations
     Object.values(state.variations).forEach(variation => {
-        delete variation.selectedBullets[bulletId];
+        if (variation.bulletPoints) {
+            variation.bulletPoints = variation.bulletPoints.filter(bp => bp.bullet_point_id !== bulletId);
+        }
     });
 
     // Remove from UI
@@ -1090,36 +1086,31 @@ function deleteJob(buttonOrEvent) {
         buttonOrEvent.closest('.job');
 
     if (jobDiv) {
-
         if (!confirm("WARNING: This will delete the job for all resume variations permanently. Only delete job if you will never need it again. If you want to hide this job from a resume, uncheck all bullet points instead.")) {
             return;
         }
 
         const jobId = jobDiv.dataset.jobId;
 
-        // Remove job from all variations' jobOrder arrays
-        Object.values(state.variations).forEach(variation => {
-            const index = variation.jobOrder.indexOf(jobId);
-            if (index > -1) {
-                variation.jobOrder.splice(index, 1);
-            }
+        // Find and remove all bullet points associated with this job
+        const jobBullets = state.currentResume.bulletPoints.filter(bp => bp.job_id === jobId);
+        jobBullets.forEach(bullet => {
+            // Remove bullet from all variations
+            Object.values(state.variations).forEach(variation => {
+                if (variation.bulletPoints) {
+                    variation.bulletPoints = variation.bulletPoints.filter(bp => bp.bullet_point_id !== bullet.id);
+                }
+            });
         });
 
-        // Remove all bullet points associated with this job
-        const job = state.currentResume.jobs[jobId];
-        if (job) {
-            job.bulletPoints.forEach(bulletId => {
-                // Remove bullet from master list
-                delete state.currentResume.bulletPoints[bulletId];
-                // Remove from selected bullets in all variations
-                Object.values(state.variations).forEach(v => {
-                    delete v.selectedBullets[bulletId];
-                });
-            });
-        }
+        // Remove all bullet points for this job from state
+        state.currentResume.bulletPoints = state.currentResume.bulletPoints.filter(bp => bp.job_id !== jobId);
 
-        // Remove job from master list
-        delete state.currentResume.jobs[jobId];
+        // Remove job from state
+        const jobIndex = state.currentResume.jobs.findIndex(j => j.id === jobId);
+        if (jobIndex > -1) {
+            state.currentResume.jobs.splice(jobIndex, 1);
+        }
 
         // Remove from UI
         jobDiv.remove();
