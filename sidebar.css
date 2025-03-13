@@ -76,14 +76,14 @@
 
 /* Personal Info Section */
 .personal-info {
-    padding: var(--space-6);
+    padding: var(--space-4);
     background: white;
     border-bottom: 1px solid var(--neutral-200);
 }
 
 /* Form Groups */
 .form-group {
-    margin-bottom: var(--space-5);
+    margin-bottom: var(--space-4);
 }
 
 .form-group:last-child {
@@ -118,6 +118,7 @@ input:focus,
 textarea:focus {
     border-color: var(--primary);
     outline: none;
+    box-shadow: 0 0 0 2px var(--accent-light);
 }
 
 textarea {
@@ -129,8 +130,7 @@ textarea {
 
 /* Jobs Section */
 .jobs-section {
-    padding: var(--space-6);
-    /* padding-top: 0; */
+    padding: var(--space-4);
     background: white;
     border-bottom: 1px solid var(--neutral-200);
 }
@@ -148,16 +148,15 @@ textarea {
 
 #addJobBtn:hover {
     background: var(--primary-dark);
-    /* transform: translateY(-1px); */
 }
 
 /* Job Styles */
 .job {
     background: white;
-    border: 1px solid var(--neutral-200);
-    border-radius: 8px;
-    margin-bottom: var(--space-4);
-    padding: var(--space-4);
+    /* border: 1px solid var(--neutral-200); */
+    border-radius: 6px;
+    margin-bottom: var(--space-3);
+    /* padding: var(--space-4); */
     transition: all 0.2s;
     width: 100%;
     box-sizing: border-box;
@@ -168,16 +167,18 @@ textarea {
     box-shadow: var(--shadow-md);
 }
 
+.job:last-child {
+    margin-bottom: 0;
+}
+
 /* Job Header */
 .job-header {
-    margin: calc(var(--space-4) * -1);
-    margin-bottom: var(--space-1);
-    padding: var(--space-4);
+    /* padding: var(--space-3); */
     background: white;
-    border-radius: 8px 8px 0 0;
+    /* border-bottom: 1px solid var(--neutral-200); */
     display: flex;
     flex-direction: column;
-    gap: var(--space-3);
+    gap: var(--space-2);
 }
 
 /* Job Title Input */
@@ -185,24 +186,22 @@ textarea {
     width: 100%;
     font-size: 16px;
     font-weight: 500;
-    padding: var(--space-3);
+    padding: var(--space-2);
     border: 0;
-    border-radius: 6px;
+    border-radius: 4px;
     background: white;
     transition: all 0.2s;
-    box-sizing: border-box;
 }
 
 /* Job Company Input */
 .job-company {
     width: 100%;
     font-size: 15px;
-    padding: var(--space-3);
+    padding: var(--space-2);
     border: 0;
-    border-radius: 6px;
+    border-radius: 4px;
     background: white;
     transition: all 0.2s;
-    box-sizing: border-box;
 }
 
 /* Job Dates Container */
@@ -244,9 +243,7 @@ textarea {
 
 /* Job Content */
 .job-content {
-    padding: 0;
-    width: 100%;
-    box-sizing: border-box;
+    padding: var(--space-3) 0;
 }
 
 /* Job controls and bullet points */
@@ -254,7 +251,7 @@ textarea {
     display: flex;
     align-items: center;
     gap: var(--space-2);
-    margin-bottom: var(--space-4);
+    margin-bottom: var(--space-3);
 }
 
 .add-bullet {
@@ -265,26 +262,27 @@ textarea {
 .bulletPointsContainer {
     display: flex;
     flex-direction: column;
-    gap: var(--space-3);
+    gap: var(--space-2);
 }
 
 .bullet-point {
     display: flex;
     flex-direction: column;
     border: 1px solid var(--neutral-200);
-    border-radius: 6px;
+    border-radius: 4px;
     background: var(--neutral-50);
     transition: all 0.2s;
+    padding-bottom: var(--space-2);
 }
 
 .bullet-point textarea {
     width: 100%;
     border: none;
     border-bottom: 1px solid var(--neutral-200);
-    border-radius: 6px 6px 0 0;
+    border-radius: 4px 4px 0 0;
     resize: vertical;
     min-height: 38px;
-    padding: var(--space-3);
+    padding: var(--space-2);
     background: white;
     box-sizing: border-box;
 }
@@ -301,9 +299,9 @@ textarea {
     display: flex;
     align-items: center;
     gap: var(--space-2);
-    padding: var(--space-2) var(--space-3);
+    padding: var(--space-2);
     background: var(--neutral-50);
-    border-radius: 0 0 6px 6px;
+    border-radius: 0 0 4px 4px;
 }
 
 .bullet-controls input[type="checkbox"] {
@@ -330,12 +328,12 @@ textarea {
     color: var(--neutral-600);
     border: 1px solid var(--neutral-200);
     border-radius: 4px;
+    transition: all 0.2s ease;
 }
 
 .bullet-controls button:hover {
     background: var(--neutral-200);
     color: var(--neutral-700);
-    transform: none;
 }
 
 .bullet-controls button:last-child {
@@ -402,8 +400,8 @@ textarea {
 }
 
 .sections-section {
-    margin-bottom: 20px;
-    padding: var(--space-6);
+    margin-bottom: var(--space-3);
+    padding: var(--space-4);
     background: white;
     border-bottom: 1px solid var(--neutral-200);
 }
@@ -429,8 +427,8 @@ textarea {
 .section {
     background: var(--neutral-50);
     border: 1px solid var(--neutral-200);
-    border-radius: 8px;
-    margin-bottom: var(--space-6);
+    border-radius: 6px;
+    margin-bottom: var(--space-3);
     transition: all 0.2s;
 }
 
@@ -444,15 +442,15 @@ textarea {
     justify-content: space-between;
     align-items: center;
     gap: var(--space-2);
-    padding: var(--space-4);
+    padding: var(--space-3);
     border-bottom: 1px solid var(--neutral-200);
     background: white;
-    border-radius: 8px 8px 0 0;
+    border-radius: 6px 6px 0 0;
 }
 
 .section-name {
     flex: 1;
-    font-size: 16px;
+    font-size: 20px;
     font-weight: 500;
     padding: var(--space-3);
     border: 0;
@@ -475,8 +473,7 @@ textarea {
     display: flex;
     align-items: center;
     gap: var(--space-2);
-    margin-bottom: var(--space-4);
-    padding: var(--space-2) var(--space-4);
+    padding: var(--space-3);
 }
 
 .add-job-btn {
@@ -496,7 +493,7 @@ textarea {
 
 /* Jobs container within section */
 .section-jobs {
-    padding: var(--space-4);
+    padding: var(--space-3);
 }
 
 /* Add Job Button */
@@ -519,20 +516,4 @@ textarea {
 
 #addJobBtn:hover {
     background: var(--primary-dark);
-}
-
-/* Job Styles */
-.job {
-    background: white;
-    border: 1px solid var(--neutral-200);
-    border-radius: 8px;
-    margin-bottom: var(--space-4);
-    padding: var(--space-4);
-    transition: all 0.2s;
-    width: 100%;
-    box-sizing: border-box;
-}
-
-.job:last-child {
-    margin-bottom: 0;
 }

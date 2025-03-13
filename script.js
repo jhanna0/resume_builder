@@ -1,10 +1,16 @@
 import { v4 as uuidv4 } from 'https://cdn.jsdelivr.net/npm/uuid@9.0.1/+esm';
 
+// DO NOT DELETE ANYTHING FROM THIS FILE UNLESS YOU EXPLICITLY ARE TOLD TO DO SO
+
 // Dynamically load the resume section only
 function loadComponent(targetId, url) {
     fetch(url)
         .then(resp => resp.text())
-        .then(html => (document.getElementById(targetId).innerHTML = html))
+        .then(html => {
+            document.getElementById(targetId).innerHTML = html;
+            // Initialize auth UI after resume component is loaded
+            updateAuthUI();
+        })
         .catch(err => console.error(`Failed to load ${url}:`, err));
 }
 
@@ -13,11 +19,12 @@ loadComponent("resume", "resume.html");
 
 // Global state
 let state = {
-    userId: "3fe7e28f-a53d-4c99-bbaa-f48583e9ea30",  // Default test user ID
+    userId: localStorage.getItem('userId'),  // Load from localStorage
     currentResume: null,
     currentVariation: null,
     variations: {},
-    isDirty: false
+    isDirty: false,
+    isAuthenticated: Boolean(localStorage.getItem('userId'))  // Set based on userId presence
 };
 
 // Add at the top with other global state
@@ -53,6 +60,8 @@ window.loadVariation = loadVariation;
 window.moveSection = moveSection;
 window.renameVariation = renameVariation;
 window.deleteVariation = deleteVariation;
+window.showAuthModal = showAuthModal;
+window.signOut = signOut;
 
 // Utility function to generate unique IDs
 function generateId() {
@@ -1236,7 +1245,10 @@ async function signup() {
         }
 
         state.userId = data.userId;
+        state.isAuthenticated = true;
+        localStorage.setItem('userId', data.userId);  // Save to localStorage
         hideAuthModal();
+        updateAuthUI();
         loadResume(); // Load the default resume
     } catch (error) {
         errorElement.textContent = error.message;
@@ -1262,7 +1274,10 @@ async function login() {
         }
 
         state.userId = data.userId;
+        state.isAuthenticated = true;
+        localStorage.setItem('userId', data.userId);  // Save to localStorage
         hideAuthModal();
+        updateAuthUI();
         loadResume(); // Load the user's resume
     } catch (error) {
         errorElement.textContent = error.message;
@@ -1299,6 +1314,11 @@ function createDefaultState() {
 
 // Update loadResume function to work with authentication
 async function loadResume() {
+    if (!state.isAuthenticated) {
+        showAuthModal();
+        return;
+    }
+
     // Initialize sidebar resize functionality
     initSidebarResize();
 
@@ -1429,8 +1449,8 @@ function updateUI() {
         });
 
     // Show/hide Add Job button based on sections existence
-    const addJobBtn = document.getElementById('addJobBtn');
-    addJobBtn.classList.toggle('visible', state.currentResume.sections.length > 0);
+    // const addJobBtn = document.getElementById('addJobBtn');
+    // addJobBtn.classList.toggle('visible', state.currentResume.sections.length > 0);
 
     // Load current variation
     if (state.currentVariation) {
@@ -1527,7 +1547,12 @@ window.addEventListener('beforeunload', (e) => {
 
 // Ensure DOM is loaded before initializing
 document.addEventListener('DOMContentLoaded', function () {
-    loadResume();
+    // Check for stored auth state
+    if (state.isAuthenticated && state.userId) {
+        loadResume();
+    } else {
+        showAuthModal();
+    }
 });
 
 async function exportToPDF() {
@@ -1930,4 +1955,40 @@ async function deleteVariation() {
         console.error('Error deleting variation:', error);
         alert(error.message);
     }
+}
+
+// Function to update UI based on auth state
+function updateAuthUI() {
+    const authButton = document.getElementById('authButton');
+    const signOutButton = document.getElementById('signOutButton');
+    const toolbarControls = document.querySelectorAll('.resume-toolbar-right > div:not(.auth-controls)');
+
+    if (!authButton || !signOutButton) {
+        console.log('Auth buttons not yet loaded');
+        return;
+    }
+
+    if (state.isAuthenticated) {
+        authButton.style.display = 'none';
+        signOutButton.style.display = 'block';
+        toolbarControls.forEach(control => control.style.display = 'block');
+    } else {
+        authButton.style.display = 'block';
+        signOutButton.style.display = 'none';
+        toolbarControls.forEach(control => control.style.display = 'none');
+    }
+}
+
+// Function to handle sign out
+function signOut() {
+    state.userId = null;
+    state.isAuthenticated = false;
+    state.currentResume = null;
+    state.currentVariation = null;
+    state.variations = {};
+    state.isDirty = false;
+    localStorage.removeItem('userId');  // Remove from localStorage
+    updateAuthUI();
+    // Clear the resume content
+    document.getElementById('resumeContent').innerHTML = '';
 }

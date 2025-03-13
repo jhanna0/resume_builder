@@ -14,8 +14,6 @@ const pool = new Pool({
     ssl: { rejectUnauthorized: false }
 });
 
-console.log(process.env);  // This should output 'postgres' or whatever value you have in .env
-
 pool.connect()
     .then(() => console.log('✅ Connected to PostgreSQL'))
     .catch(err => {
@@ -31,10 +29,11 @@ const initDB = async () => {
     CREATE TABLE IF NOT EXISTS users (
         id SERIAL PRIMARY KEY,
         uuid TEXT UNIQUE NOT NULL,
-        email TEXT UNIQUE NOT NULL,
+        email TEXT NOT NULL,
         password_hash TEXT NOT NULL,
         created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
     );
+    CREATE UNIQUE INDEX IF NOT EXISTS users_email_lower_idx ON users(LOWER(email));
     CREATE INDEX IF NOT EXISTS users_uuid_idx ON users(uuid);`;
 
     const createResumesTable = `

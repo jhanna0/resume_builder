@@ -16,14 +16,14 @@
     align-items: center;
     justify-content: space-between;
     padding: var(--space-3) var(--space-6);
-    background: linear-gradient(135deg, var(--theme-gradient-start), var(--theme-gradient-end));
+    background: linear-gradient(135deg, var(--primary), var(--secondary));
     position: sticky;
     top: 0;
     z-index: 10;
     flex-shrink: 0;
     height: 60px;
     color: white;
-    box-shadow: 0 4px 12px rgba(255, 75, 145, 0.2);
+    box-shadow: 0 4px 12px rgba(43, 108, 176, 0.2);
     border-bottom: 1px solid var(--neutral-200);
     margin-bottom: var(--space-6);
 }
@@ -84,12 +84,13 @@
     border-radius: 6px;
     font-size: 14px;
     color: var(--neutral-800);
-    background: rgba(255, 255, 255, 0.9);
+    background: rgba(255, 255, 255, 0.95);
 }
 
 .variation-selector select:focus {
     border-color: white;
     outline: none;
+    box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.2);
 }
 
 .variation-selector button {
@@ -101,7 +102,7 @@
     padding: 0;
     border: 1px solid rgba(255, 255, 255, 0.3);
     border-radius: 6px;
-    background: rgba(255, 255, 255, 0.9);
+    background: rgba(255, 255, 255, 0.95);
     color: var(--neutral-600);
     font-size: 16px;
     cursor: pointer;
@@ -111,13 +112,12 @@
 .variation-selector button:hover {
     background: var(--neutral-200);
     color: var(--neutral-700);
-    transform: none;
 }
 
 #deleteVariationBtn:hover {
-    background: #fee2e2;
-    color: #dc2626;
-    border-color: #dc2626;
+    background: var(--danger-light);
+    color: var(--danger);
+    border-color: var(--danger);
 }
 
 #renameVariationBtn {
@@ -267,14 +267,14 @@
 
 /* Toolbar buttons */
 .resume-toolbar button {
-    background: rgba(255, 255, 255, 0.2);
+    background: rgba(255, 255, 255, 0.15);
     border: 1px solid rgba(255, 255, 255, 0.3);
+    transition: all 0.2s ease;
 }
 
 .resume-toolbar button:hover {
-    background: rgba(255, 255, 255, 0.3);
+    background: rgba(255, 255, 255, 0.25);
     border-color: rgba(255, 255, 255, 0.4);
-    /* transform: translateY(-1px); */
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
@@ -524,17 +524,18 @@
     border-radius: 6px;
     font-size: 14px;
     color: var(--neutral-800);
-    background: rgba(255, 255, 255, 0.9);
+    background: rgba(255, 255, 255, 0.95);
 }
 
 .theme-selector select:focus {
     border-color: white;
     outline: none;
+    box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.2);
 }
 
 /* Update existing elements to use theme variables */
 .resume-toolbar {
-    background: linear-gradient(135deg, var(--theme-gradient-start), var(--theme-gradient-end));
+    background: linear-gradient(135deg, var(--primary), var(--secondary));
 }
 
 .resume-header h1 {
@@ -590,12 +591,13 @@
     border-radius: 6px;
     font-size: 14px;
     color: var(--neutral-800);
-    background: rgba(255, 255, 255, 0.9);
+    background: rgba(255, 255, 255, 0.95);
 }
 
 .spacing-selector select:focus {
     border-color: white;
     outline: none;
+    box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.2);
 }
 
 /* Add link styles */
@@ -623,4 +625,22 @@
     color: var(--theme-link) !important;
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
+}
+
+.auth-controls {
+    display: flex;
+    gap: 8px;
+    margin-right: 16px;
+}
+
+.auth-btn {
+    padding: 8px 16px;
+    font-size: 14px;
+    font-weight: 500;
+    border-radius: 6px;
+    transition: all 0.2s;
+}
+
+.auth-btn:hover {
+    opacity: 0.9;
 }

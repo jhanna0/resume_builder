@@ -60,6 +60,7 @@ app.post('/api/register', async (req, res) => {
     try {
         const { email, password } = req.body;
 
+        // Validate required fields
         if (!email || !password) {
             return res.status(400).json({ error: 'Email and password are required' });
         }
@@ -72,24 +73,24 @@ app.post('/api/register', async (req, res) => {
 
         // Check if user already exists
         const existingUser = await client.query(
-            'SELECT id FROM users WHERE email = $1',
+            'SELECT id FROM users WHERE LOWER(email) = LOWER($1)',
             [email]
         );
 
         if (existingUser.rows.length > 0) {
-            return res.status(409).json({ error: 'User already exists' });
+            return res.status(409).json({ error: 'An account with this email already exists' });
         }
 
         await client.query('BEGIN');
 
-        // Create user
+        // Create user with UUID
         const userUuid = uuidv4();
         const saltRounds = 10;
         const passwordHash = await bcrypt.hash(password, saltRounds);
 
         const userResult = await client.query(
             `INSERT INTO users (uuid, email, password_hash) 
-             VALUES ($1, $2, $3) 
+             VALUES ($1, LOWER($2), $3) 
              RETURNING id, uuid`,
             [userUuid, email, passwordHash]
         );
@@ -136,28 +137,30 @@ app.post('/api/register', async (req, res) => {
 
 // Login endpoint
 app.post('/api/login', async (req, res) => {
+    const client = await pool.connect();
     try {
         const { email, password } = req.body;
 
+        // Validate required fields
         if (!email || !password) {
             return res.status(400).json({ error: 'Email and password are required' });
         }
 
-        // Get user
-        const userResult = await pool.query(
-            'SELECT uuid, password_hash FROM users WHERE email = $1',
+        // Get user (case-insensitive email comparison)
+        const userResult = await client.query(
+            'SELECT uuid, password_hash FROM users WHERE LOWER(email) = LOWER($1)',
             [email]
         );
 
         if (userResult.rows.length === 0) {
-            return res.status(401).json({ error: 'Invalid credentials' });
+            return res.status(401).json({ error: 'Invalid email or password' });
         }
 
         const user = userResult.rows[0];
         const passwordMatch = await bcrypt.compare(password, user.password_hash);
 
         if (!passwordMatch) {
-            return res.status(401).json({ error: 'Invalid credentials' });
+            return res.status(401).json({ error: 'Invalid email or password' });
         }
 
         res.json({
@@ -167,6 +170,8 @@ app.post('/api/login', async (req, res) => {
     } catch (error) {
         console.error('Error logging in:', error);
         res.status(500).json({ error: 'Failed to log in' });
+    } finally {
+        client.release();
     }
 });
 
