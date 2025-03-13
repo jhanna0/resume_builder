@@ -95,19 +95,35 @@ app.post('/api/register', async (req, res) => {
             [userUuid, email, passwordHash]
         );
 
-        // Create a new empty resume for the user
+        // Create default resume
         const resumeUuid = uuidv4();
-        const resumeId = await client.query(
-            `INSERT INTO resumes (uuid, user_id, title, full_name, contact_info) 
-             VALUES ($1, $2, $3, $4, $5)
+        const resumeResult = await client.query(
+            `INSERT INTO resumes (uuid, user_id, title) 
+             VALUES ($1, $2, $3) 
              RETURNING id`,
-            [resumeUuid, userResult.rows[0].id, 'My Resume', '', '']
+            [resumeUuid, userResult.rows[0].id, 'My Resume']
+        );
+
+        // Create default variation
+        const variationUuid = uuidv4();
+        await client.query(
+            `INSERT INTO resume_variations (uuid, resume_id, name, theme, spacing)
+             VALUES ($1, $2, $3, $4, $5)`,
+            [variationUuid, resumeResult.rows[0].id, 'Default', 'default', 'normal']
+        );
+
+        // Create default "Experience" section
+        const sectionUuid = uuidv4();
+        await client.query(
+            `INSERT INTO sections (uuid, resume_id, name, order_index)
+             VALUES ($1, $2, $3, $4)`,
+            [sectionUuid, resumeResult.rows[0].id, 'Experience', 0]
         );
 
         await client.query('COMMIT');
 
         res.json({
-            message: 'Registration successful',
+            message: 'User registered successfully',
             userId: userUuid
         });
     } catch (error) {
@@ -123,7 +139,7 @@ app.post('/api/register', async (req, res) => {
 app.post('/api/login', async (req, res) => {
     const client = await pool.connect();
     try {
-        const { email, password, existingResume } = req.body;
+        const { email, password } = req.body;
 
         // Validate required fields
         if (!email || !password) {
@@ -145,71 +161,6 @@ app.post('/api/login', async (req, res) => {
 
         if (!passwordMatch) {
             return res.status(401).json({ error: 'Invalid email or password' });
-        }
-
-        // If we have an existing resume, merge it with the user's resume
-        if (existingResume && existingResume.id) {
-            await client.query('BEGIN');
-
-            try {
-                // Get the user's current resume
-                const currentResumeResult = await client.query(
-                    'SELECT id FROM resumes WHERE user_id = (SELECT id FROM users WHERE uuid = $1)',
-                    [user.uuid]
-                );
-
-                if (currentResumeResult.rows.length === 0) {
-                    throw new Error('No resume found for user');
-                }
-
-                const currentResumeId = currentResumeResult.rows[0].id;
-
-                // Insert sections
-                for (const section of existingResume.sections || []) {
-                    await client.query(
-                        `INSERT INTO sections (uuid, resume_id, name, order_index)
-                         VALUES ($1, $2, $3, $4)`,
-                        [section.id, currentResumeId, section.name, section.order_index]
-                    );
-                }
-
-                // Insert jobs
-                for (const job of existingResume.jobs || []) {
-                    await client.query(
-                        `INSERT INTO jobs (uuid, resume_id, section_id, title, company, start_date, end_date, order_index)
-                         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
-                        [job.id, currentResumeId, job.section_id, job.title, job.company,
-                        job.start_date, job.end_date, job.order_index]
-                    );
-                }
-
-                // Insert bullet points
-                for (const bullet of existingResume.bulletPoints || []) {
-                    await client.query(
-                        `INSERT INTO bullet_points (uuid, job_id, content, order_index)
-                         VALUES ($1, $2, $3, $4)`,
-                        [bullet.id, bullet.job_id, bullet.content, bullet.order_index]
-                    );
-                }
-
-                // Update resume metadata if the existing resume has more complete info
-                if (existingResume.full_name || existingResume.contact_info) {
-                    await client.query(
-                        `UPDATE resumes 
-                         SET title = COALESCE(NULLIF($1, ''), title),
-                             full_name = COALESCE(NULLIF($2, ''), full_name),
-                             contact_info = COALESCE(NULLIF($3, ''), contact_info)
-                         WHERE id = $4`,
-                        [existingResume.title, existingResume.full_name, existingResume.contact_info, currentResumeId]
-                    );
-                }
-
-                await client.query('COMMIT');
-            } catch (error) {
-                await client.query('ROLLBACK');
-                console.error('Error merging resumes:', error);
-                // Continue with login even if merge fails
-            }
         }
 
         res.json({

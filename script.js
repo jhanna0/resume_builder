@@ -24,8 +24,7 @@ let state = {
     currentVariation: null,
     variations: {},
     isDirty: false,
-    isAuthenticated: Boolean(localStorage.getItem('userId')),  // Set based on userId presence
-    hasUnsavedChanges: false  // Track unsaved changes for unauthenticated users
+    isAuthenticated: Boolean(localStorage.getItem('userId'))  // Set based on userId presence
 };
 
 // Add at the top with other global state
@@ -183,7 +182,7 @@ function isJobEmpty(job) {
     return !hasTitle && !hasBullets;
 }
 
-// Update saveResume function to handle both authenticated and unauthenticated states
+// Update saveResume function to filter out empty jobs
 async function saveResume() {
     // Filter out empty jobs before saving
     const nonEmptyJobs = state.currentResume.jobs.filter(job => !isJobEmpty(job));
@@ -199,105 +198,22 @@ async function saveResume() {
         updateUI();
     }
 
-    // If not authenticated, show auth modal and wait for authentication
-    if (!state.isAuthenticated) {
-        // Store the current resume data to be saved after authentication
-        const resumeToSave = {
-            id: state.currentResume.id,
-            title: state.currentResume.title,
-            full_name: document.getElementById('name').value,
-            contact_info: document.getElementById('contact').value,
-            sections: state.currentResume.sections,
-            jobs: state.currentResume.jobs,
-            bulletPoints: state.currentResume.bulletPoints,
-            variations: state.variations
-        };
-
-        // Show auth modal
-        showAuthModal();
-
-        // Create a promise that resolves when authentication is complete
-        const authPromise = new Promise((resolve, reject) => {
-            // Store the original login/signup functions
-            const originalLogin = window.login;
-            const originalSignup = window.signup;
-
-            // Override login function
-            window.login = async function () {
-                try {
-                    await originalLogin();
-                    resolve();
-                } catch (error) {
-                    reject(error);
-                }
-            };
-
-            // Override signup function
-            window.signup = async function () {
-                try {
-                    await originalSignup();
-                    resolve();
-                } catch (error) {
-                    reject(error);
-                }
-            };
-
-            // Handle modal close
-            const handleModalClose = () => {
-                // Restore original functions
-                window.login = originalLogin;
-                window.signup = originalSignup;
-                reject(new Error('Authentication cancelled'));
-            };
-
-            // Add event listener for modal close
-            const closeBtn = document.querySelector('.close');
-            closeBtn.addEventListener('click', handleModalClose);
-            window.addEventListener('click', (event) => {
-                if (event.target === authModal) {
-                    handleModalClose();
-                }
-            });
-        });
-
-        try {
-            // Wait for authentication to complete
-            await authPromise;
-            // After successful authentication, save the resume
-            await saveResumeToServer(resumeToSave);
-        } catch (error) {
-            if (error.message === 'Authentication cancelled') {
-                console.log('Save cancelled by user');
-                return;
-            }
-            console.error('Error during save:', error);
-            alert('Failed to save resume. Please try again.');
-        }
-        return;
-    }
-
-    // If authenticated, proceed with normal save
-    await saveResumeToServer({
-        id: state.currentResume.id,
-        title: state.currentResume.title,
-        full_name: document.getElementById('name').value,
-        contact_info: document.getElementById('contact').value,
-        sections: state.currentResume.sections,
-        jobs: state.currentResume.jobs,
-        bulletPoints: state.currentResume.bulletPoints,
-        variations: state.variations
-    });
-}
-
-// Helper function to save resume to server
-async function saveResumeToServer(resumeData) {
     try {
         const response = await fetch(`/api/resume/${state.userId}`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
             },
-            body: JSON.stringify(resumeData)
+            body: JSON.stringify({
+                id: state.currentResume.id,
+                title: state.currentResume.title,
+                full_name: document.getElementById('name').value,
+                contact_info: document.getElementById('contact').value,
+                sections: state.currentResume.sections,
+                jobs: state.currentResume.jobs,
+                bulletPoints: state.currentResume.bulletPoints,
+                variations: state.variations
+            })
         });
 
         const data = await response.json();
@@ -1333,9 +1249,7 @@ async function signup() {
         localStorage.setItem('userId', data.userId);  // Save to localStorage
         hideAuthModal();
         updateAuthUI();
-
-        // After successful signup, proceed with login to handle resume merging
-        await login();
+        loadResume(); // Load the default resume
     } catch (error) {
         errorElement.textContent = error.message;
     }
@@ -1347,17 +1261,10 @@ async function login() {
     const errorElement = document.getElementById('loginError');
 
     try {
-        // If we have an existing resume in state, include it in the login request
-        const loginData = {
-            email,
-            password,
-            ...(state.currentResume && { existingResume: state.currentResume })
-        };
-
         const response = await fetch('/api/login', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(loginData)
+            body: JSON.stringify({ email, password })
         });
 
         const data = await response.json();
@@ -1371,9 +1278,7 @@ async function login() {
         localStorage.setItem('userId', data.userId);  // Save to localStorage
         hideAuthModal();
         updateAuthUI();
-
-        // Load the user's resume from the server
-        await loadResume();
+        loadResume(); // Load the user's resume
     } catch (error) {
         errorElement.textContent = error.message;
     }
@@ -1403,13 +1308,17 @@ function createDefaultState() {
             }
         },
         currentVariation: defaultVariationId,
-        isDirty: false,
-        hasUnsavedChanges: false
+        isDirty: false
     };
 }
 
-// Update loadResume function to handle variations properly
+// Update loadResume function to work with authentication
 async function loadResume() {
+    if (!state.isAuthenticated) {
+        showAuthModal();
+        return;
+    }
+
     // Initialize sidebar resize functionality
     initSidebarResize();
 
@@ -1422,15 +1331,6 @@ async function loadResume() {
     if (!variationSelect || !nameInput || !contactInput || !bioTextarea) {
         console.error('Required DOM elements not found. Retrying in 100ms...');
         setTimeout(loadResume, 100);
-        return;
-    }
-
-    // If not authenticated, initialize with default state
-    if (!state.isAuthenticated) {
-        if (!state.currentResume) {
-            Object.assign(state, createDefaultState());
-        }
-        updateUI();
         return;
     }
 
@@ -1454,43 +1354,16 @@ async function loadResume() {
             data.bulletPoints = Array.from(new Map(data.bulletPoints.map(b => [b.id, b])).values());
         }
 
-        // If we have an existing resume in state, merge it with the server data
-        if (state.currentResume && state.currentResume.id !== data.id) {
-            // Create a new variation for the existing resume
-            const existingVariationId = generateId();
-            const existingVariation = {
-                id: existingVariationId,
-                name: 'Previous Version',
-                bio: state.variations[state.currentVariation]?.bio || '',
-                theme: state.variations[state.currentVariation]?.theme || 'default',
-                spacing: state.variations[state.currentVariation]?.spacing || 'normal',
-                bulletPoints: state.currentResume.bulletPoints.map(bp => ({
-                    bullet_point_id: bp.id,
-                    is_visible: true
-                }))
-            };
-
-            // Add existing sections, jobs, and bullet points to the server data
-            data.sections = [...data.sections, ...state.currentResume.sections];
-            data.jobs = [...data.jobs, ...state.currentResume.jobs];
-            data.bulletPoints = [...data.bulletPoints, ...state.currentResume.bulletPoints];
-
-            // Add the existing variation
-            data.variations[existingVariationId] = existingVariation;
-        }
-
-        // Update state with the loaded data
         state.currentResume = data;
-        state.variations = data.variations || {};
+        state.variations = data.variations;
 
-        // Set current variation to first one if not set or if current variation doesn't exist
-        if (!state.currentVariation || !state.variations[state.currentVariation]) {
-            state.currentVariation = Object.keys(state.variations)[0];
+        // Set current variation to first one if not set
+        if (!state.currentVariation && Object.keys(data.variations).length > 0) {
+            state.currentVariation = Object.keys(data.variations)[0];
         }
 
         updateUI();
         state.isDirty = false;
-        state.hasUnsavedChanges = false;
     } catch (error) {
         console.error('Error loading resume:', error);
         // Initialize with default state if load fails
@@ -1674,11 +1547,12 @@ window.addEventListener('beforeunload', (e) => {
 
 // Ensure DOM is loaded before initializing
 document.addEventListener('DOMContentLoaded', function () {
-    // Initialize with default state if not authenticated
-    if (!state.isAuthenticated) {
-        Object.assign(state, createDefaultState());
+    // Check for stored auth state
+    if (state.isAuthenticated && state.userId) {
+        loadResume();
+    } else {
+        showAuthModal();
     }
-    loadResume();
 });
 
 async function exportToPDF() {
