@@ -1277,6 +1277,8 @@ async function login() {
     const password = document.getElementById('loginPassword').value;
     const errorElement = document.getElementById('loginError');
 
+    var mustMerge = false;
+
     try {
         // Create the login data object
         const loginData = {
@@ -1306,6 +1308,9 @@ async function login() {
                 theme: currentVariation.theme,
                 spacing: currentVariation.spacing
             };
+
+            mustMerge = true;
+
         }
 
         const response = await fetch('/api/login', {
@@ -1318,6 +1323,11 @@ async function login() {
 
         if (!response.ok) {
             throw new Error(data.error || 'Failed to log in');
+        }
+
+        if (mustMerge) {
+            alert("We created a new resume variation, merged, and restored your previous variations.")
+            mustMerge = false;
         }
 
         state.userId = data.userId;

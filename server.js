@@ -147,13 +147,15 @@ app.post('/api/login', async (req, res) => {
                     );
                 }
 
-                // Create a new variation for the imported resume
+                // Create a new variation for the imported resume with today's date as name
+                const today = new Date();
+                const variationName = today.toISOString().split('T')[0]; // Format: YYYY-MM-DD
                 const importedVariationUuid = uuidv4();
                 const variationResult = await client.query(
                     `INSERT INTO resume_variations (uuid, user_id, name, bio, theme, spacing, is_default)
                      VALUES ($1, $2, $3, $4, $5, $6, false)
                      RETURNING id`,
-                    [importedVariationUuid, user.id, 'Imported Resume',
+                    [importedVariationUuid, user.id, variationName,
                         existingVariation.bio || '', existingVariation.theme || 'default',
                         existingVariation.spacing || 'normal']
                 );
@@ -227,7 +229,12 @@ app.post('/api/login', async (req, res) => {
             } catch (error) {
                 await client.query('ROLLBACK');
                 console.error('Error importing variation:', error);
-                // Continue with login even if import fails
+                // Return error to client instead of continuing
+                return res.status(500).json({
+                    error: 'Failed to import resume variation',
+                    details: error.message,
+                    userId: user.uuid // Still return userId so frontend can proceed if needed
+                });
             }
         }
 
