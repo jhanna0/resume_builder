@@ -107,6 +107,8 @@ app.post('/api/login', async (req, res) => {
     try {
         const { email, password, existingVariation } = req.body;
 
+        console.log('Login request received:', { email, password, existingVariation });
+
         // Validate required fields
         if (!email || !password) {
             return res.status(400).json({ error: 'Email and password are required' });
@@ -189,16 +191,19 @@ app.post('/api/login', async (req, res) => {
                                 [uuidv4(), jobResult.rows[0].id, user.id, bullet.content, bullet.order_index]
                             );
 
-                            // Set bullet point visibility
+                            // Only set visibility if this bullet point was explicitly visible in the imported variation
                             const bulletVisibility = existingVariation.bulletPoints.find(
                                 bp => bp.bullet_point_id === bullet.id
-                            )?.is_visible ?? true;
-
-                            await client.query(
-                                `INSERT INTO bullet_point_visibility (variation_id, bullet_point_id, user_id, is_visible)
-                                 VALUES ($1, $2, $3, $4)`,
-                                [variationId, bulletResult.rows[0].id, user.id, bulletVisibility]
                             );
+
+                            // Only set visibility if it was explicitly set in the imported variation
+                            if (bulletVisibility) {
+                                await client.query(
+                                    `INSERT INTO bullet_point_visibility (variation_id, bullet_point_id, user_id, is_visible)
+                                     VALUES ($1, $2, $3, $4)`,
+                                    [variationId, bulletResult.rows[0].id, user.id, bulletVisibility.is_visible]
+                                );
+                            }
                         }
                     }
                 }
@@ -405,6 +410,20 @@ app.post('/api/resume/:userId', async (req, res) => {
         const keepJobUuids = new Set(jobs.map(j => j.id));
         const keepBulletUuids = new Set(bulletPoints.map(b => b.id));
 
+        // First, delete bullet point visibility records for bullets that will be deleted
+        const bulletIdsToDelete = existingBullets.rows
+            .filter(bullet => !keepBulletUuids.has(bullet.uuid))
+            .map(bullet => bullet.id);
+
+        if (bulletIdsToDelete.length > 0) {
+            console.log('Deleting visibility records for bullet points:', bulletIdsToDelete);
+            await client.query(
+                'DELETE FROM bullet_point_visibility WHERE bullet_point_id = ANY($1)',
+                [bulletIdsToDelete]
+            );
+        }
+
+        // Then delete the actual items
         for (const section of existingSections.rows) {
             if (!keepSectionUuids.has(section.uuid)) {
                 await client.query('DELETE FROM sections WHERE id = $1', [section.id]);
@@ -425,6 +444,13 @@ app.post('/api/resume/:userId', async (req, res) => {
 
         // Handle variations first
         for (const [variationUuid, variation] of Object.entries(variations)) {
+            // Filter out bullet points that no longer exist from the variation's bulletPoints array
+            if (variation.bulletPoints) {
+                variation.bulletPoints = variation.bulletPoints.filter(bp =>
+                    bulletPoints.some(bullet => bullet.id === bp.bullet_point_id)
+                );
+            }
+
             const result = await client.query(
                 `INSERT INTO resume_variations (uuid, user_id, name, bio, theme, spacing, is_default)
                  VALUES ($1, $2, $3, $4, $5, $6, $7)
@@ -489,25 +515,103 @@ app.post('/api/resume/:userId', async (req, res) => {
         // Update bullet point visibility
         for (const [variationUuid, variation] of Object.entries(variations)) {
             const variationId = variationIdMap.get(variationUuid);
-            if (!variationId || !variation.bulletPoints) continue;
+            console.log('\n--- Processing variation:', {
+                variationUuid,
+                variationId,
+                variationName: variation.name,
+                bulletPointsCount: variation.bulletPoints?.length
+            });
 
-            // Remove old visibility entries
+            if (!variationId || !variation.bulletPoints) {
+                console.log('Skipping variation - invalid data');
+                continue;
+            }
+
+            // First delete all existing visibility entries for this variation
             await client.query(
-                'DELETE FROM bullet_point_visibility WHERE user_id = $1',
-                [userIdNum]
+                'DELETE FROM bullet_point_visibility WHERE variation_id = $1',
+                [variationId]
             );
 
-            // Insert new visibility entries
+            console.log('\nBullet points in variation:', variation.bulletPoints);
+            console.log('\nBulletIdMap contents:', Object.fromEntries(bulletIdMap));
+
+            // Verify which bullet points exist in the database
+            const bulletIds = variation.bulletPoints
+                .map(bp => bulletIdMap.get(bp.bullet_point_id))
+                .filter(id => id !== undefined);
+
+            const existingBulletIds = await client.query(
+                'SELECT id FROM bullet_points WHERE id = ANY($1)',
+                [bulletIds]
+            );
+
+            const validBulletIds = new Set(existingBulletIds.rows.map(row => row.id));
+
+            console.log('\nValid bullet IDs in database:', Array.from(validBulletIds));
+
+            // Then insert new visibility entries only for bullet points that exist in the database
             const visibilityValues = variation.bulletPoints
-                .filter(bp => bp.bullet_point_id && bulletIdMap.has(bp.bullet_point_id))
-                .map(bp => `(${variationId}, ${bulletIdMap.get(bp.bullet_point_id)}, ${userIdNum}, ${bp.is_visible})`);
+                .filter(bp => {
+                    console.log('\nProcessing bullet point:', bp);
+
+                    if (!bp.bullet_point_id) {
+                        console.log('❌ Missing bullet_point_id:', bp);
+                        return false;
+                    }
+                    const mappedId = bulletIdMap.get(bp.bullet_point_id);
+                    if (!mappedId) {
+                        console.log('❌ Bullet point not found in map:', {
+                            bullet_point_id: bp.bullet_point_id,
+                            availableIds: Array.from(bulletIdMap.keys())
+                        });
+                        return false;
+                    }
+                    if (!validBulletIds.has(mappedId)) {
+                        console.log('❌ Bullet point does not exist in database:', {
+                            bullet_point_id: bp.bullet_point_id,
+                            mapped_id: mappedId
+                        });
+                        return false;
+                    }
+                    console.log('✅ Bullet point valid');
+                    return true;
+                })
+                .map(bp => {
+                    const bulletId = bulletIdMap.get(bp.bullet_point_id);
+                    console.log('Mapping bullet point:', {
+                        original_id: bp.bullet_point_id,
+                        mapped_id: bulletId,
+                        is_visible: bp.is_visible
+                    });
+                    return {
+                        variationId,
+                        bulletId,
+                        userId: userIdNum,
+                        isVisible: bp.is_visible
+                    };
+                });
+
+            console.log('\nFinal visibility values:', visibilityValues);
 
             if (visibilityValues.length > 0) {
+                const params = [
+                    visibilityValues.map(v => v.variationId),
+                    visibilityValues.map(v => v.bulletId),
+                    visibilityValues.map(v => v.userId),
+                    visibilityValues.map(v => v.isVisible)
+                ];
+                console.log('\nInserting with params:', params);
+
+                // Use parameterized query instead of string concatenation
                 await client.query(
                     `INSERT INTO bullet_point_visibility 
-                     (variation_id, bullet_point_id, user_id, is_visible) 
-                     VALUES ${visibilityValues.join(',')}`
+                     (variation_id, bullet_point_id, user_id, is_visible)
+                     SELECT * FROM UNNEST ($1::int[], $2::int[], $3::int[], $4::boolean[])`,
+                    params
                 );
+            } else {
+                console.log('No valid visibility values to insert');
             }
         }
 

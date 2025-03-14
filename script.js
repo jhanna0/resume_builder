@@ -1278,21 +1278,35 @@ async function login() {
     const errorElement = document.getElementById('loginError');
 
     try {
-        // If we have an existing variation in state, include it in the login request
+        // Create the login data object
         const loginData = {
             email,
-            password,
-            existingVariation: state.isAuthenticated ? null : {
+            password
+        };
+
+        // Only include existingVariation if we have actual content
+        const currentVariation = state.variations[state.currentVariation];
+        if (currentVariation && hasContent({
+            full_name: state.full_name,
+            contact_info: state.contact_info,
+            sections: state.sections,
+            jobs: state.jobs,
+            bulletPoints: state.bulletPoints,
+            bio: currentVariation.bio,
+            theme: currentVariation.theme,
+            spacing: currentVariation.spacing
+        })) {
+            loginData.existingVariation = {
                 full_name: state.full_name,
                 contact_info: state.contact_info,
                 sections: state.sections,
                 jobs: state.jobs,
                 bulletPoints: state.bulletPoints,
-                bio: state.variations[state.currentVariation]?.bio || '',
-                theme: state.variations[state.currentVariation]?.theme || 'default',
-                spacing: state.variations[state.currentVariation]?.spacing || 'normal'
-            }
-        };
+                bio: currentVariation.bio,
+                theme: currentVariation.theme,
+                spacing: currentVariation.spacing
+            };
+        }
 
         const response = await fetch('/api/login', {
             method: 'POST',
@@ -1493,42 +1507,65 @@ function updateUI() {
     clearUnsavedChanges();
 }
 
-function deleteJob(buttonOrEvent) {
-    const jobDiv = buttonOrEvent.target ?
-        buttonOrEvent.target.closest('.job') :
-        buttonOrEvent.closest('.job');
+function deleteJob(button) {
+    const jobDiv = button.closest('.job');
+    const jobId = jobDiv.dataset.jobId;
 
-    if (jobDiv) {
-        if (!confirm("WARNING: This will delete the job for all resume variations permanently. Only delete job if you will never need it again. If you want to hide this job from a resume, uncheck all bullet points instead.")) {
-            return;
-        }
-
-        const jobId = jobDiv.dataset.jobId;
-
-        // Find and remove all bullet points associated with this job
-        const jobBullets = state.bulletPoints.filter(bp => bp.job_id === jobId);
-        jobBullets.forEach(bullet => {
-            // Remove bullet from all variations
-            Object.values(state.variations).forEach(variation => {
-                if (variation.bulletPoints) {
-                    variation.bulletPoints = variation.bulletPoints.filter(bp => bp.bullet_point_id !== bullet.id);
-                }
-            });
-        });
-
-        // Remove all bullet points for this job from state
-        state.bulletPoints = state.bulletPoints.filter(bp => bp.job_id !== jobId);
-
-        // Remove job from state
-        const jobIndex = state.jobs.findIndex(j => j.id === jobId);
-        if (jobIndex > -1) {
-            state.jobs.splice(jobIndex, 1);
-        }
-
-        // Remove from UI
-        jobDiv.remove();
-        updateResume();
+    if (!confirm("WARNING: This will delete the job and all its bullet points permanently. Are you sure?")) {
+        return;
     }
+
+    // Remove all bullet points for this job
+    const bulletPoints = state.bulletPoints.filter(bp => bp.job_id === jobId);
+    bulletPoints.forEach(bp => {
+        const index = state.bulletPoints.indexOf(bp);
+        if (index > -1) {
+            state.bulletPoints.splice(index, 1);
+
+            // Remove this bullet point from all variations' bulletPoints arrays
+            Object.values(state.variations).forEach(variation => {
+                variation.bulletPoints = variation.bulletPoints.filter(
+                    bpv => bpv.bullet_point_id !== bp.id
+                );
+            });
+        }
+    });
+
+    // Remove job from state
+    const jobIndex = state.jobs.findIndex(j => j.id === jobId);
+    if (jobIndex > -1) {
+        state.jobs.splice(jobIndex, 1);
+    }
+
+    // Remove from UI
+    jobDiv.remove();
+    updateResume();
+}
+
+function deleteBulletPoint(button) {
+    const bulletDiv = button.closest('.bullet-point');
+    const bulletId = bulletDiv.dataset.bulletId;
+
+    if (!confirm("WARNING: This will delete this bullet point permanently. Are you sure?")) {
+        return;
+    }
+
+    // Remove bullet point from state
+    const bulletIndex = state.bulletPoints.findIndex(bp => bp.id === bulletId);
+    if (bulletIndex > -1) {
+        state.bulletPoints.splice(bulletIndex, 1);
+
+        // Remove this bullet point from all variations' bulletPoints arrays
+        Object.values(state.variations).forEach(variation => {
+            variation.bulletPoints = variation.bulletPoints.filter(
+                bpv => bpv.bullet_point_id !== bulletId
+            );
+        });
+    }
+
+    // Remove from UI
+    bulletDiv.remove();
+    updateResume();
 }
 
 function setupJobEventListeners(jobDiv) {
@@ -1874,6 +1911,13 @@ function deleteSection(button) {
             const index = state.bulletPoints.indexOf(bp);
             if (index > -1) {
                 state.bulletPoints.splice(index, 1);
+
+                // Remove this bullet point from all variations' bulletPoints arrays
+                Object.values(state.variations).forEach(variation => {
+                    variation.bulletPoints = variation.bulletPoints.filter(
+                        bpv => bpv.bullet_point_id !== bp.id
+                    );
+                });
             }
         });
 
@@ -2007,8 +2051,30 @@ function updateAuthUI() {
     }
 }
 
+// Helper function to check if a variation has any content
+function hasContent(variation) {
+    // Check if there's any actual content, ignoring empty/default values
+    const hasActualContent = Boolean(
+        variation.full_name?.trim() ||
+        variation.contact_info?.trim() ||
+        variation.bio?.trim() ||
+        (variation.sections && variation.sections.length > 0 && variation.sections.some(s => s.name?.trim())) ||
+        (variation.jobs && variation.jobs.length > 0 && variation.jobs.some(j => j.title?.trim() || j.company?.trim())) ||
+        (variation.bulletPoints && variation.bulletPoints.length > 0 && variation.bulletPoints.some(b => b.content?.trim()))
+    );
+
+    // Only consider theme/spacing changes if there's actual content
+    const hasCustomization = hasActualContent && (
+        (variation.theme && variation.theme !== 'default') ||
+        (variation.spacing && variation.spacing !== 'normal')
+    );
+
+    return hasActualContent || hasCustomization;
+}
+
 // Function to handle sign out
 function signOut() {
+    // Clear state
     state.userId = null;
     state.isAuthenticated = false;
     state.full_name = '';
@@ -2020,9 +2086,27 @@ function signOut() {
     state.currentVariation = null;
     state.isDirty = false;
     localStorage.removeItem('userId');  // Remove from localStorage
-    updateAuthUI();
-    // Clear the resume content
+
+    // Clear UI elements
+    document.getElementById('name').value = '';
+    document.getElementById('contact').value = '';
+    document.getElementById('bio').value = '';
+    document.getElementById('sectionsContainer').innerHTML = '';
     document.getElementById('resumeContent').innerHTML = '';
+    document.getElementById('variationSelect').innerHTML = '';
+
+    // Reset theme and spacing to defaults
+    document.documentElement.setAttribute('data-theme', 'default');
+    document.documentElement.setAttribute('data-spacing', 'normal');
+    document.getElementById('themeSelect').value = 'default';
+    document.getElementById('spacingSelect').value = 'normal';
+
+    // Initialize with default state
+    Object.assign(state, createDefaultState());
+
+    // Update UI elements
+    updateAuthUI();
+    updateUI();
 }
 
 function fillSampleData() {
