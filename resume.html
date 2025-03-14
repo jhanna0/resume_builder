@@ -9,6 +9,7 @@
                 <button id="authButton" onclick="showAuthModal()" class="auth-btn">Sign In</button>
                 <button id="signOutButton" onclick="signOut()" class="auth-btn" style="display: none;">Sign Out</button>
             </div>
+            <button onclick="fillSampleData()" class="fill-sample-btn">Fill Sample Data</button>
             <div class="spacing-controls">
                 <!-- <label>Spacing:</label> -->
                 <div class="spacing-selector">
@@ -34,7 +35,7 @@
                 <!-- <label>Variation:</label> -->
                 <div class="variation-selector">
                     <select id="variationSelect" onchange="loadVariation(this.value)">
-                        <option value="default">Default</option>
+                        <option value="default">Original</option>
                     </select>
                     <button id="newVariationBtn" onclick="createNewVariation()" title="Create New Variation">+</button>
                     <button id="renameVariationBtn" onclick="renameVariation()" title="Rename Variation">✎</button>

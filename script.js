@@ -20,11 +20,16 @@ loadComponent("resume", "resume.html");
 // Global state
 let state = {
     userId: localStorage.getItem('userId'),  // Load from localStorage
-    currentResume: null,
-    currentVariation: null,
+    full_name: '',
+    contact_info: '',
+    sections: [],
+    jobs: [],
+    bulletPoints: [],
     variations: {},
+    currentVariation: null,
     isDirty: false,
-    isAuthenticated: Boolean(localStorage.getItem('userId'))  // Set based on userId presence
+    isAuthenticated: Boolean(localStorage.getItem('userId')),
+    hasUnsavedChanges: false
 };
 
 // Add at the top with other global state
@@ -116,8 +121,8 @@ function addSection(sectionData = null) {
     const sectionId = sectionData?.id || generateId();
 
     // Get max order_index and add 1, or 0 if no sections exist
-    const maxOrderIndex = state.currentResume.sections.length > 0
-        ? Math.max(...state.currentResume.sections.map(s => s.order_index))
+    const maxOrderIndex = state.sections.length > 0
+        ? Math.max(...state.sections.map(s => s.order_index))
         : -1;
 
     const section = {
@@ -127,10 +132,10 @@ function addSection(sectionData = null) {
     };
 
     // Add to state
-    state.currentResume.sections.push(section);
+    state.sections.push(section);
 
     // Normalize all section indices to ensure they're continuous
-    state.currentResume.sections = normalizeOrderIndices(state.currentResume.sections);
+    state.sections = normalizeOrderIndices(state.sections);
 
     // Create section UI
     const sectionDiv = document.createElement('div');
@@ -176,44 +181,123 @@ function addSection(sectionData = null) {
 function isJobEmpty(job) {
     // Check if job has no title and no bullet points
     const hasTitle = job.title && job.title.trim().length > 0;
-    const hasBullets = state.currentResume.bulletPoints.some(bp =>
+    const hasBullets = state.bulletPoints.some(bp =>
         bp.job_id === job.id && bp.content && bp.content.trim().length > 0
     );
     return !hasTitle && !hasBullets;
 }
 
-// Update saveResume function to filter out empty jobs
+// Update saveResume function to handle both authenticated and unauthenticated states
 async function saveResume() {
     // Filter out empty jobs before saving
-    const nonEmptyJobs = state.currentResume.jobs.filter(job => !isJobEmpty(job));
+    const nonEmptyJobs = state.jobs.filter(job => !isJobEmpty(job));
 
     // If jobs were filtered out, update the state
-    if (nonEmptyJobs.length !== state.currentResume.jobs.length) {
-        state.currentResume.jobs = nonEmptyJobs;
+    if (nonEmptyJobs.length !== state.jobs.length) {
+        state.jobs = nonEmptyJobs;
         // Also remove bullet points for removed jobs
-        state.currentResume.bulletPoints = state.currentResume.bulletPoints.filter(bp =>
+        state.bulletPoints = state.bulletPoints.filter(bp =>
             nonEmptyJobs.some(job => job.id === bp.job_id)
         );
         // Update UI to reflect removed jobs
         updateUI();
     }
 
+    // If not authenticated, show auth modal and wait for authentication
+    if (!state.isAuthenticated) {
+        // Store the current resume data to be saved after authentication
+        const resumeToSave = {
+            full_name: document.getElementById('name').value,
+            contact_info: document.getElementById('contact').value,
+            sections: state.sections,
+            jobs: state.jobs,
+            bulletPoints: state.bulletPoints,
+            variations: state.variations
+        };
+
+        // Show auth modal
+        showAuthModal();
+
+        // Create a promise that resolves when authentication is complete
+        const authPromise = new Promise((resolve, reject) => {
+            // Store the original login/signup functions
+            const originalLogin = window.login;
+            const originalSignup = window.signup;
+
+            // Override login function
+            window.login = async function () {
+                try {
+                    await originalLogin();
+                    resolve();
+                } catch (error) {
+                    reject(error);
+                }
+            };
+
+            // Override signup function
+            window.signup = async function () {
+                try {
+                    await originalSignup();
+                    resolve();
+                } catch (error) {
+                    reject(error);
+                }
+            };
+
+            // Handle modal close
+            const handleModalClose = () => {
+                // Restore original functions
+                window.login = originalLogin;
+                window.signup = originalSignup;
+                reject(new Error('Authentication cancelled'));
+            };
+
+            // Add event listener for modal close
+            const closeBtn = document.querySelector('.close');
+            closeBtn.addEventListener('click', handleModalClose);
+            window.addEventListener('click', (event) => {
+                if (event.target === authModal) {
+                    handleModalClose();
+                }
+            });
+        });
+
+        try {
+            // Wait for authentication to complete
+            await authPromise;
+            // After successful authentication, save the resume
+            await saveResumeToServer(resumeToSave);
+        } catch (error) {
+            if (error.message === 'Authentication cancelled') {
+                console.log('Save cancelled by user');
+                return;
+            }
+            console.error('Error during save:', error);
+            alert('Failed to save resume. Please try again.');
+        }
+        return;
+    }
+
+    // If authenticated, proceed with normal save
+    await saveResumeToServer({
+        full_name: document.getElementById('name').value,
+        contact_info: document.getElementById('contact').value,
+        sections: state.sections,
+        jobs: state.jobs,
+        bulletPoints: state.bulletPoints,
+        variations: state.variations
+    });
+}
+
+// Helper function to save resume to server
+async function saveResumeToServer(resumeData) {
     try {
         const response = await fetch(`/api/resume/${state.userId}`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
             },
-            body: JSON.stringify({
-                id: state.currentResume.id,
-                title: state.currentResume.title,
-                full_name: document.getElementById('name').value,
-                contact_info: document.getElementById('contact').value,
-                sections: state.currentResume.sections,
-                jobs: state.currentResume.jobs,
-                bulletPoints: state.currentResume.bulletPoints,
-                variations: state.variations
-            })
+            body: JSON.stringify(resumeData)
         });
 
         const data = await response.json();
@@ -233,18 +317,18 @@ async function saveResume() {
 // Update addJob to prevent creating empty jobs if there's already an empty one in the section
 function addJob(jobData = null, skipStateUpdate = false, targetSectionId = null) {
     // If no sections exist, create one
-    if (state.currentResume.sections.length === 0) {
+    if (state.sections.length === 0) {
         addSection({ name: 'Experience', order_index: 0 });
     }
 
     // Use provided targetSectionId or get from jobData
     if (!targetSectionId) {
-        targetSectionId = jobData?.section_id || state.currentResume.sections[0].id;
+        targetSectionId = jobData?.section_id || state.sections[0].id;
     }
 
     // Check if there's already an empty job in this section
     if (!jobData) {
-        const sectionJobs = state.currentResume.jobs.filter(j => j.section_id === targetSectionId);
+        const sectionJobs = state.jobs.filter(j => j.section_id === targetSectionId);
         const hasEmptyJob = sectionJobs.some(isJobEmpty);
         if (hasEmptyJob) {
             alert('Please fill out the existing empty job before adding a new one.');
@@ -263,7 +347,7 @@ function addJob(jobData = null, skipStateUpdate = false, targetSectionId = null)
     }
 
     // Get max order_index for jobs in this section and add 1, or 0 if no jobs exist
-    const sectionJobs = state.currentResume.jobs.filter(j => j.section_id === targetSectionId);
+    const sectionJobs = state.jobs.filter(j => j.section_id === targetSectionId);
     const maxOrderIndex = sectionJobs.length > 0
         ? Math.max(...sectionJobs.map(j => j.order_index))
         : -1;
@@ -280,10 +364,10 @@ function addJob(jobData = null, skipStateUpdate = false, targetSectionId = null)
     };
 
     // Only update state if this is a new job and we're not skipping state update
-    if (!skipStateUpdate && !state.currentResume.jobs.find(j => j.id === jobId)) {
-        state.currentResume.jobs.push(job);
+    if (!skipStateUpdate && !state.jobs.find(j => j.id === jobId)) {
+        state.jobs.push(job);
         // Normalize order indices for all jobs in this section
-        const sectionJobs = state.currentResume.jobs.filter(j => j.section_id === targetSectionId);
+        const sectionJobs = state.jobs.filter(j => j.section_id === targetSectionId);
         normalizeOrderIndices(sectionJobs);
     }
 
@@ -296,7 +380,7 @@ function addJob(jobData = null, skipStateUpdate = false, targetSectionId = null)
     const titleInput = jobDiv.querySelector('.job-title');
     titleInput.value = job.title;
     titleInput.addEventListener('input', () => {
-        const existingJob = state.currentResume.jobs.find(j => j.id === jobId);
+        const existingJob = state.jobs.find(j => j.id === jobId);
         if (existingJob) {
             existingJob.title = titleInput.value;
         }
@@ -307,7 +391,7 @@ function addJob(jobData = null, skipStateUpdate = false, targetSectionId = null)
     const companyInput = jobDiv.querySelector('.job-company');
     companyInput.value = job.company || '';
     companyInput.addEventListener('input', () => {
-        const existingJob = state.currentResume.jobs.find(j => j.id === jobId);
+        const existingJob = state.jobs.find(j => j.id === jobId);
         if (existingJob) {
             existingJob.company = companyInput.value;
         }
@@ -322,7 +406,7 @@ function addJob(jobData = null, skipStateUpdate = false, targetSectionId = null)
     endDateInput.value = job.end_date || '';
 
     startDateInput.addEventListener('input', () => {
-        const existingJob = state.currentResume.jobs.find(j => j.id === jobId);
+        const existingJob = state.jobs.find(j => j.id === jobId);
         if (existingJob) {
             existingJob.start_date = startDateInput.value;
         }
@@ -330,7 +414,7 @@ function addJob(jobData = null, skipStateUpdate = false, targetSectionId = null)
     });
 
     endDateInput.addEventListener('input', () => {
-        const existingJob = state.currentResume.jobs.find(j => j.id === jobId);
+        const existingJob = state.jobs.find(j => j.id === jobId);
         if (existingJob) {
             existingJob.end_date = endDateInput.value;
         }
@@ -384,7 +468,7 @@ function addBulletPoint(containerOrButton, bulletData = null, skipStateUpdate = 
     const bulletId = bulletData?.id || generateId();
 
     // Get max order_index for bullets in this job and add 1, or 0 if no bullets exist
-    const jobBullets = state.currentResume.bulletPoints.filter(b => b.job_id === jobId);
+    const jobBullets = state.bulletPoints.filter(b => b.job_id === jobId);
     const maxOrderIndex = jobBullets.length > 0
         ? Math.max(...jobBullets.map(b => b.order_index))
         : -1;
@@ -398,10 +482,10 @@ function addBulletPoint(containerOrButton, bulletData = null, skipStateUpdate = 
     };
 
     // Only update state if this is a new bullet and we're not skipping state update
-    if (!skipStateUpdate && !state.currentResume.bulletPoints.find(b => b.id === bulletId)) {
-        state.currentResume.bulletPoints.push(bullet);
+    if (!skipStateUpdate && !state.bulletPoints.find(b => b.id === bulletId)) {
+        state.bulletPoints.push(bullet);
         // Normalize order indices for all bullets in this job
-        const jobBullets = state.currentResume.bulletPoints.filter(b => b.job_id === jobId);
+        const jobBullets = state.bulletPoints.filter(b => b.job_id === jobId);
         normalizeOrderIndices(jobBullets);
 
         // Set visibility for variations
@@ -431,7 +515,7 @@ function addBulletPoint(containerOrButton, bulletData = null, skipStateUpdate = 
 
     // Add event listeners
     textArea.addEventListener('input', () => {
-        const existingBullet = state.currentResume.bulletPoints.find(b => b.id === bulletId);
+        const existingBullet = state.bulletPoints.find(b => b.id === bulletId);
         if (existingBullet) {
             existingBullet.content = textArea.value;
         }
@@ -475,7 +559,7 @@ function addBulletPoint(containerOrButton, bulletData = null, skipStateUpdate = 
 function updateJobTags(jobDiv) {
     const jobId = jobDiv.dataset.jobId;
     const tagsContainer = jobDiv.querySelector('.job-tags');
-    const job = state.currentResume.jobs[jobId];
+    const job = state.jobs[jobId];
 
     tagsContainer.innerHTML = '';
     job.tags.forEach(tag => {
@@ -497,7 +581,7 @@ function updateJobTags(jobDiv) {
 function updateBulletTags(bulletDiv) {
     const bulletId = bulletDiv.dataset.bulletId;
     const tagsContainer = bulletDiv.querySelector('.bullet-tags');
-    const bullet = state.currentResume.bulletPoints[bulletId];
+    const bullet = state.bulletPoints[bulletId];
 
     tagsContainer.innerHTML = '';
     bullet.tags.forEach(tag => {
@@ -524,7 +608,7 @@ function addJobTag(jobId) {
         state.tags.push(tag);
     }
 
-    const job = state.currentResume.jobs[jobId];
+    const job = state.jobs[jobId];
     if (!job.tags.includes(tag)) {
         job.tags.push(tag);
         const jobDiv = document.querySelector(`.job[data-job-id="${jobId}"]`);
@@ -541,7 +625,7 @@ function addBulletTag(bulletId) {
         state.tags.push(tag);
     }
 
-    const bullet = state.currentResume.bulletPoints[bulletId];
+    const bullet = state.bulletPoints[bulletId];
     if (!bullet.tags.includes(tag)) {
         bullet.tags.push(tag);
         const bulletDiv = document.querySelector(`.bullet-point[data-bullet-id="${bulletId}"]`);
@@ -557,12 +641,12 @@ function moveJob(button, direction) {
     const currentSectionId = currentSection.dataset.sectionId;
 
     // Find job and relevant sections in state
-    const job = state.currentResume.jobs.find(j => j.id === jobId);
-    const sections = state.currentResume.sections;
+    const job = state.jobs.find(j => j.id === jobId);
+    const sections = state.sections;
     const currentSectionIndex = sections.findIndex(s => s.id === currentSectionId);
 
     // Get jobs in current section
-    const sectionJobs = state.currentResume.jobs
+    const sectionJobs = state.jobs
         .filter(j => j.section_id === currentSectionId)
         .sort((a, b) => a.order_index - b.order_index);
 
@@ -577,7 +661,7 @@ function moveJob(button, direction) {
         } else if (currentSectionIndex > 0) {
             // Move to end of previous section
             const prevSectionId = sections[currentSectionIndex - 1].id;
-            const prevSectionJobs = state.currentResume.jobs
+            const prevSectionJobs = state.jobs
                 .filter(j => j.section_id === prevSectionId);
 
             job.section_id = prevSectionId;
@@ -594,7 +678,7 @@ function moveJob(button, direction) {
         } else if (currentSectionIndex < sections.length - 1) {
             // Move to beginning of next section
             const nextSectionId = sections[currentSectionIndex + 1].id;
-            const nextSectionJobs = state.currentResume.jobs
+            const nextSectionJobs = state.jobs
                 .filter(j => j.section_id === nextSectionId);
 
             job.section_id = nextSectionId;
@@ -606,7 +690,7 @@ function moveJob(button, direction) {
 
     // Normalize indices for all affected sections
     sections.forEach(section => {
-        const sectionJobs = state.currentResume.jobs.filter(j => j.section_id === section.id);
+        const sectionJobs = state.jobs.filter(j => j.section_id === section.id);
         normalizeOrderIndices(sectionJobs);
     });
 
@@ -621,7 +705,7 @@ function moveBullet(button, direction) {
     const jobId = jobDiv.dataset.jobId;
 
     // Find bullet points for this job
-    const jobBullets = state.currentResume.bulletPoints
+    const jobBullets = state.bulletPoints
         .filter(b => b.job_id === jobId)
         .sort((a, b) => a.order_index - b.order_index);
 
@@ -642,7 +726,7 @@ function moveBullet(button, direction) {
     }
 
     // Normalize indices for all bullets in this job
-    const allJobBullets = state.currentResume.bulletPoints.filter(b => b.job_id === jobId);
+    const allJobBullets = state.bulletPoints.filter(b => b.job_id === jobId);
     normalizeOrderIndices(allJobBullets);
 
     // Update UI to reflect state changes
@@ -657,16 +741,16 @@ function duplicateBullet(button) {
 
     // Create new bullet point data
     const newBulletId = generateId();
-    const originalBullet = state.currentResume.bulletPoints[originalBulletId];
+    const originalBullet = state.bulletPoints[originalBulletId];
 
     // Copy the original bullet's text
-    state.currentResume.bulletPoints[newBulletId] = {
+    state.bulletPoints[newBulletId] = {
         id: newBulletId,
         text: originalBullet.text
     };
 
     // Insert the new bullet ID after the original one in the job's bulletPoints array
-    const job = state.currentResume.jobs[jobId];
+    const job = state.jobs[jobId];
     const originalIndex = job.bulletPoints.indexOf(originalBulletId);
     job.bulletPoints.splice(originalIndex + 1, 0, newBulletId);
 
@@ -688,7 +772,7 @@ function duplicateBullet(button) {
 
     // Add event listeners
     textArea.addEventListener('input', () => {
-        state.currentResume.bulletPoints[newBulletId].text = textArea.value;
+        state.bulletPoints[newBulletId].text = textArea.value;
         autoResizeTextarea(textArea);
         updateResume();
     });
@@ -717,9 +801,9 @@ function deleteBullet(button) {
     }
 
     // Remove bullet from state
-    const bulletIndex = state.currentResume.bulletPoints.findIndex(b => b.id === bulletId);
+    const bulletIndex = state.bulletPoints.findIndex(b => b.id === bulletId);
     if (bulletIndex > -1) {
-        state.currentResume.bulletPoints.splice(bulletIndex, 1);
+        state.bulletPoints.splice(bulletIndex, 1);
     }
 
     // Remove bullet from all variations
@@ -780,8 +864,8 @@ function updateResume() {
     resumeContent.innerHTML = '';
 
     // Update personal info in state
-    state.currentResume.full_name = document.getElementById('name').value.trim();
-    state.currentResume.contact_info = document.getElementById('contact').value.trim();
+    state.full_name = document.getElementById('name').value.trim();
+    state.contact_info = document.getElementById('contact').value.trim();
 
     if (!state.currentVariation || !state.variations[state.currentVariation]) {
         return;
@@ -1017,16 +1101,16 @@ function updateResume() {
     let contentHTML = '';
 
     // Add personal info header
-    if (state.currentResume.full_name || state.currentResume.contact_info || variation.bio) {
+    if (state.full_name || state.contact_info || variation.bio) {
         contentHTML += `<div class='resume-header'>`;
-        if (state.currentResume.full_name) contentHTML += `<h1>${state.currentResume.full_name}</h1>`;
-        if (state.currentResume.contact_info) contentHTML += `<p>${linkifyText(state.currentResume.contact_info)}</p>`;
+        if (state.full_name) contentHTML += `<h1>${state.full_name}</h1>`;
+        if (state.contact_info) contentHTML += `<p>${linkifyText(state.contact_info)}</p>`;
         if (variation.bio) contentHTML += `<p>${linkifyText(variation.bio)}</p>`;
         contentHTML += `</div>`;
     }
 
     // Sort sections by order_index
-    const sortedSections = [...state.currentResume.sections].sort((a, b) => a.order_index - b.order_index);
+    const sortedSections = [...state.sections].sort((a, b) => a.order_index - b.order_index);
 
     // Process sections in order
     sortedSections.forEach(section => {
@@ -1035,13 +1119,13 @@ function updateResume() {
                           <h2>${section.name}</h2><div class="section-content">`;
 
         // Get and sort jobs for this section
-        const sectionJobs = state.currentResume.jobs
+        const sectionJobs = state.jobs
             .filter(job => job.section_id === section.id)
             .sort((a, b) => a.order_index - b.order_index);
 
         sectionJobs.forEach(job => {
             // Get and sort visible bullet points for this job
-            const visibleBullets = state.currentResume.bulletPoints
+            const visibleBullets = state.bulletPoints
                 .filter(bullet => bullet.job_id === job.id)
                 .filter(bullet => {
                     const bulletVisibility = variation.bulletPoints
@@ -1246,10 +1330,12 @@ async function signup() {
 
         state.userId = data.userId;
         state.isAuthenticated = true;
-        localStorage.setItem('userId', data.userId);  // Save to localStorage
+        localStorage.setItem('userId', data.userId);
         hideAuthModal();
         updateAuthUI();
-        loadResume(); // Load the default resume
+
+        // After successful signup, proceed with login to handle resume merging
+        await login();
     } catch (error) {
         errorElement.textContent = error.message;
     }
@@ -1261,10 +1347,26 @@ async function login() {
     const errorElement = document.getElementById('loginError');
 
     try {
+        // If we have an existing variation in state, include it in the login request
+        const loginData = {
+            email,
+            password,
+            existingVariation: state.isAuthenticated ? null : {
+                full_name: state.full_name,
+                contact_info: state.contact_info,
+                sections: state.sections,
+                jobs: state.jobs,
+                bulletPoints: state.bulletPoints,
+                bio: state.variations[state.currentVariation]?.bio || '',
+                theme: state.variations[state.currentVariation]?.theme || 'default',
+                spacing: state.variations[state.currentVariation]?.spacing || 'normal'
+            }
+        };
+
         const response = await fetch('/api/login', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email, password })
+            body: JSON.stringify(loginData)
         });
 
         const data = await response.json();
@@ -1275,10 +1377,12 @@ async function login() {
 
         state.userId = data.userId;
         state.isAuthenticated = true;
-        localStorage.setItem('userId', data.userId);  // Save to localStorage
+        localStorage.setItem('userId', data.userId);
         hideAuthModal();
         updateAuthUI();
-        loadResume(); // Load the user's resume
+
+        // Load the user's resume from the server
+        await loadResume();
     } catch (error) {
         errorElement.textContent = error.message;
     }
@@ -1288,15 +1392,11 @@ async function login() {
 function createDefaultState() {
     const defaultVariationId = generateId();
     return {
-        currentResume: {
-            id: generateId(),
-            title: 'My Resume',
-            full_name: '',
-            contact_info: '',
-            sections: [],
-            jobs: [],
-            bulletPoints: []
-        },
+        full_name: '',
+        contact_info: '',
+        sections: [],
+        jobs: [],
+        bulletPoints: [],
         variations: {
             [defaultVariationId]: {
                 id: defaultVariationId,
@@ -1308,17 +1408,13 @@ function createDefaultState() {
             }
         },
         currentVariation: defaultVariationId,
-        isDirty: false
+        isDirty: false,
+        hasUnsavedChanges: false
     };
 }
 
-// Update loadResume function to work with authentication
+// Update loadResume function to handle variations properly
 async function loadResume() {
-    if (!state.isAuthenticated) {
-        showAuthModal();
-        return;
-    }
-
     // Initialize sidebar resize functionality
     initSidebarResize();
 
@@ -1334,6 +1430,13 @@ async function loadResume() {
         return;
     }
 
+    // If not authenticated, initialize with default state
+    if (!state.isAuthenticated) {
+        Object.assign(state, createDefaultState());
+        updateUI();
+        return;
+    }
+
     try {
         const response = await fetch(`/api/resume/${state.userId}`);
         if (!response.ok) {
@@ -1341,29 +1444,24 @@ async function loadResume() {
         }
 
         const data = await response.json();
-        console.log('Loaded data:', data);
+        console.log('Loaded data:', data, state.userId);
 
-        // Ensure arrays are unique by ID
-        if (data.sections) {
-            data.sections = Array.from(new Map(data.sections.map(s => [s.id, s])).values());
-        }
-        if (data.jobs) {
-            data.jobs = Array.from(new Map(data.jobs.map(j => [j.id, j])).values());
-        }
-        if (data.bulletPoints) {
-            data.bulletPoints = Array.from(new Map(data.bulletPoints.map(b => [b.id, b])).values());
-        }
+        // Update state with loaded data
+        state.full_name = data.full_name || '';
+        state.contact_info = data.contact_info || '';
+        state.sections = data.sections || [];
+        state.jobs = data.jobs || [];
+        state.bulletPoints = data.bulletPoints || [];
+        state.variations = data.variations || {};
 
-        state.currentResume = data;
-        state.variations = data.variations;
-
-        // Set current variation to first one if not set
-        if (!state.currentVariation && Object.keys(data.variations).length > 0) {
-            state.currentVariation = Object.keys(data.variations)[0];
+        // Set current variation to first one if not set or if current variation doesn't exist
+        if (!state.currentVariation || !state.variations[state.currentVariation]) {
+            state.currentVariation = Object.keys(state.variations)[0];
         }
 
         updateUI();
         state.isDirty = false;
+        state.hasUnsavedChanges = false;
     } catch (error) {
         console.error('Error loading resume:', error);
         // Initialize with default state if load fails
@@ -1375,8 +1473,8 @@ async function loadResume() {
 // Update updateUI to resize all textareas after loading content
 function updateUI() {
     // Set personal info
-    document.getElementById('name').value = state.currentResume.full_name || '';
-    document.getElementById('contact').value = state.currentResume.contact_info || '';
+    document.getElementById('name').value = state.full_name || '';
+    document.getElementById('contact').value = state.contact_info || '';
 
     // Setup variations dropdown
     const variationSelect = document.getElementById('variationSelect');
@@ -1393,7 +1491,7 @@ function updateUI() {
     document.getElementById('sectionsContainer').innerHTML = '';
 
     // Load sections
-    state.currentResume.sections
+    state.sections
         .sort((a, b) => a.order_index - b.order_index)
         .forEach(section => {
             // Create section UI
@@ -1427,7 +1525,7 @@ function updateUI() {
             document.getElementById('sectionsContainer').appendChild(sectionDiv);
 
             // Load jobs for this section
-            const sectionJobs = state.currentResume.jobs
+            const sectionJobs = state.jobs
                 .filter(job => job.section_id === section.id)
                 .sort((a, b) => a.order_index - b.order_index);
 
@@ -1438,7 +1536,7 @@ function updateUI() {
 
                 // Add bullet points for this job
                 const bulletContainer = jobDiv.querySelector('.bulletPointsContainer');
-                const jobBullets = state.currentResume.bulletPoints
+                const jobBullets = state.bulletPoints
                     .filter(bp => bp.job_id === job.id)
                     .sort((a, b) => a.order_index - b.order_index);
 
@@ -1477,7 +1575,7 @@ function deleteJob(buttonOrEvent) {
         const jobId = jobDiv.dataset.jobId;
 
         // Find and remove all bullet points associated with this job
-        const jobBullets = state.currentResume.bulletPoints.filter(bp => bp.job_id === jobId);
+        const jobBullets = state.bulletPoints.filter(bp => bp.job_id === jobId);
         jobBullets.forEach(bullet => {
             // Remove bullet from all variations
             Object.values(state.variations).forEach(variation => {
@@ -1488,12 +1586,12 @@ function deleteJob(buttonOrEvent) {
         });
 
         // Remove all bullet points for this job from state
-        state.currentResume.bulletPoints = state.currentResume.bulletPoints.filter(bp => bp.job_id !== jobId);
+        state.bulletPoints = state.bulletPoints.filter(bp => bp.job_id !== jobId);
 
         // Remove job from state
-        const jobIndex = state.currentResume.jobs.findIndex(j => j.id === jobId);
+        const jobIndex = state.jobs.findIndex(j => j.id === jobId);
         if (jobIndex > -1) {
-            state.currentResume.jobs.splice(jobIndex, 1);
+            state.jobs.splice(jobIndex, 1);
         }
 
         // Remove from UI
@@ -1547,12 +1645,11 @@ window.addEventListener('beforeunload', (e) => {
 
 // Ensure DOM is loaded before initializing
 document.addEventListener('DOMContentLoaded', function () {
-    // Check for stored auth state
-    if (state.isAuthenticated && state.userId) {
-        loadResume();
-    } else {
-        showAuthModal();
+    // Initialize with default state if not authenticated
+    if (!state.isAuthenticated) {
+        Object.assign(state, createDefaultState());
     }
+    loadResume();
 });
 
 async function exportToPDF() {
@@ -1736,7 +1833,7 @@ async function exportToPDF() {
         const downloadUrl = URL.createObjectURL(pdfBlob);
 
         // Get name, variation, and theme for filename
-        const fullName = state.currentResume.name || 'Resume';
+        const fullName = state.full_name || 'Resume';
         const currentVariation = document.getElementById('variationSelect').value;
         const variationName = state.variations[currentVariation]?.name || 'Default';
 
@@ -1807,7 +1904,7 @@ function moveSection(button, direction) {
     const sectionId = sectionDiv.dataset.sectionId;
 
     // Find section in state
-    const sections = state.currentResume.sections;
+    const sections = state.sections;
     const currentIndex = sections.findIndex(s => s.id === sectionId);
 
     if (direction === 'up' && currentIndex > 0) {
@@ -1838,28 +1935,28 @@ function deleteSection(button) {
     }
 
     // Remove all jobs in this section
-    const jobsToRemove = state.currentResume.jobs.filter(job => job.section_id === sectionId);
+    const jobsToRemove = state.jobs.filter(job => job.section_id === sectionId);
     jobsToRemove.forEach(job => {
         // Remove all bullet points for this job
-        const bulletPoints = state.currentResume.bulletPoints.filter(bp => bp.job_id === job.id);
+        const bulletPoints = state.bulletPoints.filter(bp => bp.job_id === job.id);
         bulletPoints.forEach(bp => {
-            const index = state.currentResume.bulletPoints.indexOf(bp);
+            const index = state.bulletPoints.indexOf(bp);
             if (index > -1) {
-                state.currentResume.bulletPoints.splice(index, 1);
+                state.bulletPoints.splice(index, 1);
             }
         });
 
         // Remove job
-        const index = state.currentResume.jobs.indexOf(job);
+        const index = state.jobs.indexOf(job);
         if (index > -1) {
-            state.currentResume.jobs.splice(index, 1);
+            state.jobs.splice(index, 1);
         }
     });
 
     // Remove section from state
-    const sectionIndex = state.currentResume.sections.findIndex(s => s.id === sectionId);
+    const sectionIndex = state.sections.findIndex(s => s.id === sectionId);
     if (sectionIndex > -1) {
-        state.currentResume.sections.splice(sectionIndex, 1);
+        state.sections.splice(sectionIndex, 1);
     }
 
     // Remove from UI
@@ -1983,12 +2080,161 @@ function updateAuthUI() {
 function signOut() {
     state.userId = null;
     state.isAuthenticated = false;
-    state.currentResume = null;
-    state.currentVariation = null;
+    state.full_name = '';
+    state.contact_info = '';
+    state.sections = [];
+    state.jobs = [];
+    state.bulletPoints = [];
     state.variations = {};
+    state.currentVariation = null;
     state.isDirty = false;
     localStorage.removeItem('userId');  // Remove from localStorage
     updateAuthUI();
     // Clear the resume content
     document.getElementById('resumeContent').innerHTML = '';
 }
+
+function fillSampleData() {
+    // Set basic info
+    document.getElementById('name').value = 'Alex Morgan';
+    document.getElementById('contact').value = 'alex.morgan@email.com | linkedin.com/in/alexmorgan | github.com/alexmorgan | (555) 123-4567';
+    document.getElementById('bio').value = 'Full-stack software engineer with 5+ years of experience building scalable web applications. Passionate about clean code, user experience, and mentoring junior developers.';
+
+    // Create sections
+    const experienceSection = addSection({ name: 'Experience', order_index: 0 });
+    const educationSection = addSection({ name: 'Education', order_index: 1 });
+    const projectsSection = addSection({ name: 'Projects', order_index: 2 });
+
+    // Add jobs to Experience section
+    const job1 = {
+        id: generateId(),
+        section_id: experienceSection.id,
+        title: 'Senior Software Engineer',
+        company: 'TechCorp Solutions',
+        start_date: 'January 2021',
+        end_date: 'Present',
+        order_index: 0
+    };
+
+    const job2 = {
+        id: generateId(),
+        section_id: experienceSection.id,
+        title: 'Software Engineer',
+        company: 'InnovateSoft Inc.',
+        start_date: 'June 2018',
+        end_date: 'December 2020',
+        order_index: 1
+    };
+
+    // Add jobs to Education section
+    const education1 = {
+        id: generateId(),
+        section_id: educationSection.id,
+        title: 'M.S. Computer Science',
+        company: 'Tech University',
+        start_date: '2016',
+        end_date: '2018',
+        order_index: 0
+    };
+
+    // Add jobs to Projects section
+    const project1 = {
+        id: generateId(),
+        section_id: projectsSection.id,
+        title: 'E-commerce Platform Redesign',
+        company: 'Open Source Project',
+        start_date: '2022',
+        end_date: '2023',
+        order_index: 0
+    };
+
+    // Add jobs to UI
+    const job1Div = addJob(job1);
+    const job2Div = addJob(job2);
+    const educationDiv = addJob(education1);
+    const projectDiv = addJob(project1);
+
+    // Add bullet points to jobs
+    const job1Bullets = [
+        'Led a team of 5 engineers in developing a microservices architecture that reduced system latency by 40%',
+        'Implemented CI/CD pipeline using GitHub Actions, reducing deployment time by 60%',
+        'Mentored 3 junior developers, leading to their successful promotion to mid-level positions',
+        'Architected and deployed cloud-native solutions using AWS, serving 1M+ daily active users'
+    ];
+
+    const job2Bullets = [
+        'Developed RESTful APIs using Node.js and Express, serving 500k+ daily requests',
+        'Optimized MongoDB queries, resulting in 30% faster response times',
+        'Collaborated with UX team to implement responsive design principles',
+        'Built automated testing suite with 90% code coverage using Jest and React Testing Library'
+    ];
+
+    const educationBullets = [
+        'GPA: 3.9/4.0',
+        'Teaching Assistant for Advanced Algorithms course',
+        'Published research paper on distributed systems optimization'
+    ];
+
+    const projectBullets = [
+        'Built full-stack e-commerce platform using React, Node.js, and PostgreSQL',
+        'Implemented secure payment processing using Stripe API',
+        'Achieved 98% test coverage and zero critical vulnerabilities'
+    ];
+
+    // Function to add bullets with varying visibility
+    const addBulletsWithVisibility = (container, bullets, visibilityPattern) => {
+        bullets.forEach((text, index) => {
+            const bullet = {
+                id: generateId(),
+                content: text,
+                order_index: index
+            };
+            const bulletDiv = addBulletPoint(container, bullet);
+            const checkbox = bulletDiv.querySelector('input[type="checkbox"]');
+            checkbox.checked = visibilityPattern[index % visibilityPattern.length];
+            checkbox.dispatchEvent(new Event('change'));
+        });
+    };
+
+    // Add bullets with different visibility patterns
+    addBulletsWithVisibility(
+        job1Div.querySelector('.bulletPointsContainer'),
+        job1Bullets,
+        [true, true, false, true] // Varying visibility pattern
+    );
+
+    addBulletsWithVisibility(
+        job2Div.querySelector('.bulletPointsContainer'),
+        job2Bullets,
+        [true, false, true, false] // Alternating visibility
+    );
+
+    addBulletsWithVisibility(
+        educationDiv.querySelector('.bulletPointsContainer'),
+        educationBullets,
+        [true, true, true] // All visible
+    );
+
+    addBulletsWithVisibility(
+        projectDiv.querySelector('.bulletPointsContainer'),
+        projectBullets,
+        [true, false, true] // Mixed visibility
+    );
+
+    // Create a second variation
+    createNewVariation();
+    const secondVariationId = document.getElementById('variationSelect').value;
+
+    // Update bio for second variation
+    state.variations[secondVariationId].bio = 'Senior software engineer specializing in cloud architecture and distributed systems. Track record of delivering high-performance solutions at scale.';
+
+    // Switch back to first variation
+    document.getElementById('variationSelect').value = state.currentVariation;
+    loadVariation(state.currentVariation);
+
+    // Mark changes as unsaved
+    markUnsavedChanges();
+}
+
+// Make fillSampleData available globally
+window.fillSampleData = fillSampleData;

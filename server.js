@@ -16,7 +16,7 @@ const PORT = process.env.PORT || 3000;
 app.use(express.json());
 app.use(express.static(__dirname));
 
-async function createDefaultResume(userId) {
+async function createDefaultVariation(userId) {
     // Get user's ID from UUID
     const userResult = await pool.query('SELECT id FROM users WHERE uuid = $1', [userId]);
     if (userResult.rows.length === 0) {
@@ -24,34 +24,25 @@ async function createDefaultResume(userId) {
     }
 
     const userIdNum = userResult.rows[0].id;
-    const defaultResumeUuid = uuidv4();
-
-    // Create default resume
-    const newResumeResult = await pool.query(
-        `INSERT INTO resumes (uuid, user_id, title, full_name, contact_info) 
-         VALUES ($1, $2, $3, $4, $5) 
-         RETURNING id, uuid, title, full_name, contact_info`,
-        [defaultResumeUuid, userIdNum, 'My Resume', '', '']
-    );
+    const defaultVariationUuid = uuidv4();
 
     // Create default variation
-    const defaultVariationUuid = uuidv4();
-    await pool.query(
-        `INSERT INTO resume_variations (uuid, resume_id, name, bio, theme, spacing)
-         VALUES ($1, $2, $3, $4, $5, $6)`,
-        [defaultVariationUuid, newResumeResult.rows[0].id, 'Default', '', 'default', 'normal']
+    const newVariationResult = await pool.query(
+        `INSERT INTO resume_variations (uuid, user_id, name, bio, theme, spacing, is_default) 
+         VALUES ($1, $2, $3, $4, $5, $6, $7) 
+         RETURNING id, uuid`,
+        [defaultVariationUuid, userIdNum, 'Original', '', 'default', 'normal', true]
     );
 
     // Create a default "Experience" section
     const defaultSectionUuid = uuidv4();
     await pool.query(
-        `INSERT INTO sections (uuid, resume_id, name, order_index)
+        `INSERT INTO sections (uuid, user_id, name, order_index)
          VALUES ($1, $2, $3, $4)`,
-        [defaultSectionUuid, newResumeResult.rows[0].id, 'Experience', 0]
+        [defaultSectionUuid, userIdNum, 'Experience', 0]
     );
 
-    // Return the new resume data
-    return newResumeResult.rows;
+    return newVariationResult.rows[0];
 }
 
 // User registration
@@ -95,35 +86,10 @@ app.post('/api/register', async (req, res) => {
             [userUuid, email, passwordHash]
         );
 
-        // Create default resume
-        const resumeUuid = uuidv4();
-        const resumeResult = await client.query(
-            `INSERT INTO resumes (uuid, user_id, title) 
-             VALUES ($1, $2, $3) 
-             RETURNING id`,
-            [resumeUuid, userResult.rows[0].id, 'My Resume']
-        );
-
-        // Create default variation
-        const variationUuid = uuidv4();
-        await client.query(
-            `INSERT INTO resume_variations (uuid, resume_id, name, theme, spacing)
-             VALUES ($1, $2, $3, $4, $5)`,
-            [variationUuid, resumeResult.rows[0].id, 'Default', 'default', 'normal']
-        );
-
-        // Create default "Experience" section
-        const sectionUuid = uuidv4();
-        await client.query(
-            `INSERT INTO sections (uuid, resume_id, name, order_index)
-             VALUES ($1, $2, $3, $4)`,
-            [sectionUuid, resumeResult.rows[0].id, 'Experience', 0]
-        );
-
         await client.query('COMMIT');
 
         res.json({
-            message: 'User registered successfully',
+            message: 'Registration successful',
             userId: userUuid
         });
     } catch (error) {
@@ -139,7 +105,7 @@ app.post('/api/register', async (req, res) => {
 app.post('/api/login', async (req, res) => {
     const client = await pool.connect();
     try {
-        const { email, password } = req.body;
+        const { email, password, existingVariation } = req.body;
 
         // Validate required fields
         if (!email || !password) {
@@ -148,7 +114,7 @@ app.post('/api/login', async (req, res) => {
 
         // Get user (case-insensitive email comparison)
         const userResult = await client.query(
-            'SELECT uuid, password_hash FROM users WHERE LOWER(email) = LOWER($1)',
+            'SELECT id, uuid, password_hash, full_name, contact_info FROM users WHERE LOWER(email) = LOWER($1)',
             [email]
         );
 
@@ -161,6 +127,103 @@ app.post('/api/login', async (req, res) => {
 
         if (!passwordMatch) {
             return res.status(401).json({ error: 'Invalid email or password' });
+        }
+
+        // If we have an existing variation, merge it with the user's variations
+        if (existingVariation) {
+            await client.query('BEGIN');
+
+            try {
+                // Update user's personal info if the existing variation has more complete info
+                if (existingVariation.full_name || existingVariation.contact_info) {
+                    await client.query(
+                        `UPDATE users 
+                         SET full_name = COALESCE(NULLIF($1, ''), full_name),
+                             contact_info = COALESCE(NULLIF($2, ''), contact_info)
+                         WHERE id = $3`,
+                        [existingVariation.full_name, existingVariation.contact_info, user.id]
+                    );
+                }
+
+                // Create a new variation for the imported resume
+                const importedVariationUuid = uuidv4();
+                const variationResult = await client.query(
+                    `INSERT INTO resume_variations (uuid, user_id, name, bio, theme, spacing, is_default)
+                     VALUES ($1, $2, $3, $4, $5, $6, $7)
+                     RETURNING id`,
+                    [importedVariationUuid, user.id, 'Imported Resume',
+                        existingVariation.bio || '', existingVariation.theme || 'default',
+                        existingVariation.spacing || 'normal', false]
+                );
+                const variationId = variationResult.rows[0].id;
+
+                // Get existing sections for name matching
+                const existingSectionsResult = await client.query(
+                    `SELECT id, name FROM sections 
+                     WHERE user_id = $1`,
+                    [user.id]
+                );
+
+                // Create a map of section names to their IDs
+                const sectionNameToId = new Map(
+                    existingSectionsResult.rows.map(s => [s.name.toLowerCase(), s.id])
+                );
+
+                // Process each section from the existing variation
+                for (const section of existingVariation.sections || []) {
+                    const sectionNameLower = section.name.toLowerCase();
+                    let targetSectionId;
+
+                    // Create a new section
+                    const newSectionResult = await client.query(
+                        `INSERT INTO sections (uuid, user_id, name, order_index)
+                         VALUES ($1, $2, $3, $4)
+                         RETURNING id`,
+                        [uuidv4(), user.id, section.name, section.order_index]
+                    );
+                    targetSectionId = newSectionResult.rows[0].id;
+
+                    // Insert jobs for this section
+                    const sectionJobs = existingVariation.jobs.filter(j => j.section_id === section.id);
+                    for (const job of sectionJobs) {
+                        const jobResult = await client.query(
+                            `INSERT INTO jobs (uuid, section_id, title, company, start_date, end_date, order_index)
+                             VALUES ($1, $2, $3, $4, $5, $6, $7)
+                             RETURNING id`,
+                            [uuidv4(), targetSectionId, job.title, job.company,
+                            job.start_date, job.end_date, job.order_index]
+                        );
+
+                        // Insert bullet points for this job
+                        const jobBullets = existingVariation.bulletPoints.filter(b => b.job_id === job.id);
+                        for (const bullet of jobBullets) {
+                            const bulletResult = await client.query(
+                                `INSERT INTO bullet_points (uuid, job_id, content, order_index)
+                                 VALUES ($1, $2, $3, $4)
+                                 RETURNING id`,
+                                [uuidv4(), jobResult.rows[0].id, bullet.content, bullet.order_index]
+                            );
+
+                            // Set bullet point visibility
+                            const bulletVisibility = existingVariation.bulletPoints.find(
+                                bp => bp.bullet_point_id === bullet.id
+                            )?.is_visible ?? true;
+
+                            await client.query(
+                                `INSERT INTO bullet_point_visibility (variation_id, bullet_point_id, is_visible)
+                                 VALUES ($1, $2, $3)`,
+                                [variationId, bulletResult.rows[0].id, bulletVisibility]
+                            );
+                        }
+                    }
+                }
+
+                await client.query('COMMIT');
+            } catch (error) {
+                await client.query('ROLLBACK');
+                console.error('Error importing variation:', error);
+                // Continue with login even if import fails
+            }
         }
 
         res.json({
@@ -177,77 +240,90 @@ app.post('/api/login', async (req, res) => {
 
 // Load resume data
 app.get('/api/resume/:userId', async (req, res) => {
+    const client = await pool.connect();
     try {
         const { userId } = req.params;
 
-        // Get the user's resume
-        const resumeResult = await pool.query(
-            'SELECT id, uuid, title, full_name, contact_info FROM resumes WHERE user_id = (SELECT id FROM users WHERE uuid = $1) LIMIT 1',
+        // Get user info
+        const userResult = await client.query(
+            'SELECT id, full_name, contact_info FROM users WHERE uuid = $1',
             [userId]
         );
 
-        if (resumeResult.rows.length === 0) {
-            // Create a default resume for new users
-            resumeResult.rows = await createDefaultResume(userId);
+        if (userResult.rows.length === 0) {
+            return res.status(404).json({ error: 'User not found' });
         }
 
-        const resumeId = resumeResult.rows[0].id;
+        const user = userResult.rows[0];
 
-        // Get all sections in order
-        const sectionsResult = await pool.query(
-            'SELECT id, uuid, name, order_index FROM sections WHERE resume_id = $1 ORDER BY order_index ASC',
-            [resumeId]
+        // Get all variations for the user
+        const variationsResult = await client.query(
+            'SELECT id, uuid, name, bio, theme, spacing, is_default FROM resume_variations WHERE user_id = $1',
+            [user.id]
         );
 
-        // Get all jobs in order
-        const jobsResult = await pool.query(
-            'SELECT id, uuid, section_id, title, company, start_date, end_date, order_index FROM jobs WHERE resume_id = $1 ORDER BY order_index ASC',
-            [resumeId]
+        // If no variations exist, create a default one
+        if (variationsResult.rows.length === 0) {
+            const defaultVariation = await createDefaultVariation(userId);
+            variationsResult.rows = [defaultVariation];
+        }
+
+        // Get all sections for the user
+        const sectionsResult = await client.query(
+            `SELECT s.id, s.uuid, s.name, s.order_index 
+             FROM sections s
+             WHERE s.user_id = $1 
+             ORDER BY s.order_index ASC`,
+            [user.id]
         );
 
-        // Get all bullet points in order
-        const bulletPointsResult = await pool.query(
-            'SELECT bp.id, bp.uuid, bp.job_id, bp.content, bp.order_index FROM bullet_points bp ' +
-            'JOIN jobs j ON bp.job_id = j.id ' +
-            'WHERE j.resume_id = $1 ' +
-            'ORDER BY bp.order_index ASC',
-            [resumeId]
+        // Get all jobs for all sections
+        const jobsResult = await client.query(
+            `SELECT j.id, j.uuid, j.section_id, j.title, j.company, j.start_date, j.end_date, j.order_index 
+             FROM jobs j
+             JOIN sections s ON j.section_id = s.id
+             WHERE s.user_id = $1 
+             ORDER BY j.order_index ASC`,
+            [user.id]
         );
 
-        // Get all variations
-        const variationsResult = await pool.query(
-            'SELECT id, uuid, name, bio, theme, spacing FROM resume_variations WHERE resume_id = $1',
-            [resumeId]
+        // Get all bullet points for all jobs
+        const bulletPointsResult = await client.query(
+            `SELECT bp.id, bp.uuid, bp.job_id, bp.content, bp.order_index 
+             FROM bullet_points bp
+             JOIN jobs j ON bp.job_id = j.id
+             JOIN sections s ON j.section_id = s.id
+             WHERE s.user_id = $1 
+             ORDER BY bp.order_index ASC`,
+            [user.id]
         );
 
         // Get bullet point visibility for all variations
-        const visibilityResult = await pool.query(
+        const visibilityResult = await client.query(
             `SELECT bpv.variation_id, bpv.bullet_point_id, bpv.is_visible
              FROM bullet_point_visibility bpv
              JOIN resume_variations rv ON bpv.variation_id = rv.id
-             WHERE rv.resume_id = $1`,
-            [resumeId]
+             WHERE rv.user_id = $1`,
+            [user.id]
         );
 
         // Structure the response
         const response = {
-            id: resumeResult.rows[0].uuid, // Send UUID to frontend
-            title: resumeResult.rows[0].title,
-            full_name: resumeResult.rows[0].full_name,
-            contact_info: resumeResult.rows[0].contact_info,
+            full_name: user.full_name,
+            contact_info: user.contact_info,
             sections: sectionsResult.rows.map(s => ({
                 ...s,
-                id: s.uuid // Send UUID to frontend
+                id: s.uuid
             })),
             jobs: jobsResult.rows.map(j => ({
                 ...j,
-                id: j.uuid, // Send UUID to frontend
-                section_id: sectionsResult.rows.find(s => s.id === j.section_id)?.uuid // Map to section UUID
+                id: j.uuid,
+                section_id: sectionsResult.rows.find(s => s.id === j.section_id)?.uuid
             })),
             bulletPoints: bulletPointsResult.rows.map(bp => ({
                 ...bp,
-                id: bp.uuid, // Send UUID to frontend
-                job_id: jobsResult.rows.find(j => j.id === bp.job_id)?.uuid // Map to job UUID
+                id: bp.uuid,
+                job_id: jobsResult.rows.find(j => j.id === bp.job_id)?.uuid
             })),
             variations: variationsResult.rows.reduce((acc, variation) => {
                 // Get visibility map for this variation
@@ -261,12 +337,16 @@ app.get('/api/resume/:userId', async (req, res) => {
                         return map;
                     }, {});
 
-                acc[variation.uuid] = { // Use UUID as key
-                    ...variation,
-                    id: variation.uuid, // Send UUID to frontend
+                acc[variation.uuid] = {
+                    id: variation.uuid,
+                    name: variation.name,
+                    bio: variation.bio,
+                    theme: variation.theme,
+                    spacing: variation.spacing,
+                    is_default: variation.is_default,
                     bulletPoints: bulletPointsResult.rows.map(bp => ({
-                        bullet_point_id: bp.uuid, // Use UUID
-                        is_visible: visibilityMap[bp.uuid] ?? true // Default to visible if not set
+                        bullet_point_id: bp.uuid,
+                        is_visible: visibilityMap[bp.uuid] ?? true
                     }))
                 };
                 return acc;
@@ -276,7 +356,9 @@ app.get('/api/resume/:userId', async (req, res) => {
         res.json(response);
     } catch (error) {
         console.error('Error loading resume:', error);
-        res.status(500).json({ error: 'Failed to load resume data' });
+        res.status(500).json({ error: 'Failed to load resume data', details: error.message });
+    } finally {
+        client.release();
     }
 });
 
@@ -285,7 +367,9 @@ app.post('/api/resume/:userId', async (req, res) => {
     const client = await pool.connect();
     try {
         const { userId } = req.params;
-        const { id: resumeUuid, title, full_name, contact_info, sections, jobs, bulletPoints, variations } = req.body;
+        const { full_name, contact_info, sections, jobs, bulletPoints, variations } = req.body;
+
+        console.log('Saving resume data:', req.body);
 
         await client.query('BEGIN');
 
@@ -296,29 +380,40 @@ app.post('/api/resume/:userId', async (req, res) => {
         }
         const userIdNum = userResult.rows[0].id;
 
-        // Update or create resume
-        const resumeResult = await client.query(
-            `INSERT INTO resumes (uuid, user_id, title, full_name, contact_info) 
-             VALUES ($1, $2, $3, $4, $5)
-             ON CONFLICT (uuid) 
-             DO UPDATE SET title = $3, full_name = $4, contact_info = $5
-             RETURNING id`,
-            [resumeUuid, userIdNum, title, full_name, contact_info]
+        // Update user's personal info
+        await client.query(
+            `UPDATE users 
+             SET full_name = $1, contact_info = $2
+             WHERE id = $3`,
+            [full_name, contact_info, userIdNum]
         );
-        const resumeId = resumeResult.rows[0].id;
 
         // Get existing items to determine what to delete
-        const existingSections = await client.query('SELECT id, uuid FROM sections WHERE resume_id = $1', [resumeId]);
-        const existingJobs = await client.query('SELECT id, uuid FROM jobs WHERE resume_id = $1', [resumeId]);
+        const existingSections = await client.query(
+            'SELECT id, uuid FROM sections WHERE user_id = $1',
+            [userIdNum]
+        );
+        const existingJobs = await client.query(
+            `SELECT j.id, j.uuid 
+             FROM jobs j 
+             JOIN sections s ON j.section_id = s.id 
+             WHERE s.user_id = $1`,
+            [userIdNum]
+        );
         const existingBullets = await client.query(
-            'SELECT id, uuid FROM bullet_points WHERE job_id IN (SELECT id FROM jobs WHERE resume_id = $1)',
-            [resumeId]
+            `SELECT bp.id, bp.uuid 
+             FROM bullet_points bp 
+             JOIN jobs j ON bp.job_id = j.id 
+             JOIN sections s ON j.section_id = s.id 
+             WHERE s.user_id = $1`,
+            [userIdNum]
         );
 
         // Create maps for looking up internal IDs
         const sectionIdMap = new Map(existingSections.rows.map(s => [s.uuid, s.id]));
         const jobIdMap = new Map(existingJobs.rows.map(j => [j.uuid, j.id]));
         const bulletIdMap = new Map(existingBullets.rows.map(b => [b.uuid, b.id]));
+        const variationIdMap = new Map();
 
         // Delete items that are no longer present
         const keepSectionUuids = new Set(sections.map(s => s.id));
@@ -343,88 +438,91 @@ app.post('/api/resume/:userId', async (req, res) => {
             }
         }
 
-        // Insert or update sections
-        for (let i = 0; i < sections.length; i++) {
-            const section = sections[i];
+        // Handle variations first
+        for (const [variationUuid, variation] of Object.entries(variations)) {
             const result = await client.query(
-                `INSERT INTO sections (uuid, resume_id, name, order_index) 
+                `INSERT INTO resume_variations (uuid, user_id, name, bio, theme, spacing, is_default)
+                 VALUES ($1, $2, $3, $4, $5, $6, $7)
+                 ON CONFLICT (uuid)
+                 DO UPDATE SET name = $3, bio = $4, theme = $5, spacing = $6, is_default = $7
+                 RETURNING id`,
+                [variationUuid, userIdNum, variation.name, variation.bio,
+                    variation.theme || 'default', variation.spacing || 'normal',
+                    variation.is_default || false]
+            );
+            variationIdMap.set(variationUuid, result.rows[0].id);
+        }
+
+        // Insert or update sections
+        for (const section of sections) {
+            const result = await client.query(
+                `INSERT INTO sections (uuid, user_id, name, order_index) 
                  VALUES ($1, $2, $3, $4)
                  ON CONFLICT (uuid) 
                  DO UPDATE SET name = $3, order_index = $4
                  RETURNING id`,
-                [section.id, resumeId, section.name, i]
+                [section.id, userIdNum, section.name, section.order_index]
             );
             sectionIdMap.set(section.id, result.rows[0].id);
         }
 
         // Insert or update jobs
-        for (let i = 0; i < jobs.length; i++) {
-            const job = jobs[i];
+        for (const job of jobs) {
             const sectionId = sectionIdMap.get(job.section_id);
             if (!sectionId) continue;
 
             const result = await client.query(
                 `INSERT INTO jobs 
-                 (uuid, resume_id, section_id, title, company, start_date, end_date, order_index) 
+                 (uuid, user_id, section_id, title, company, start_date, end_date, order_index) 
                  VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
                  ON CONFLICT (uuid)
                  DO UPDATE SET section_id = $3, title = $4, company = $5, 
                              start_date = $6, end_date = $7, order_index = $8
                  RETURNING id`,
-                [job.id, resumeId, sectionId, job.title, job.company, job.start_date, job.end_date, i]
+                [job.id, userIdNum, sectionId, job.title, job.company,
+                job.start_date, job.end_date, job.order_index]
             );
             jobIdMap.set(job.id, result.rows[0].id);
         }
 
         // Insert or update bullet points
-        for (let i = 0; i < bulletPoints.length; i++) {
-            const bullet = bulletPoints[i];
+        for (const bullet of bulletPoints) {
             const jobId = jobIdMap.get(bullet.job_id);
             if (!jobId) continue;
 
             const result = await client.query(
-                `INSERT INTO bullet_points (uuid, job_id, content, order_index) 
-                 VALUES ($1, $2, $3, $4)
+                `INSERT INTO bullet_points (uuid, user_id, job_id, content, order_index) 
+                 VALUES ($1, $2, $3, $4, $5)
                  ON CONFLICT (uuid)
-                 DO UPDATE SET content = $3, order_index = $4
+                 DO UPDATE SET content = $4, order_index = $5
                  RETURNING id`,
-                [bullet.id, jobId, bullet.content, i]
+                [bullet.id, userIdNum, jobId, bullet.content, bullet.order_index]
             );
             bulletIdMap.set(bullet.id, result.rows[0].id);
         }
 
-        // Handle variations
+        // Update bullet point visibility
         for (const [variationUuid, variation] of Object.entries(variations)) {
-            const result = await client.query(
-                `INSERT INTO resume_variations (uuid, resume_id, name, bio, theme, spacing)
-                 VALUES ($1, $2, $3, $4, $5, $6)
-                 ON CONFLICT (uuid)
-                 DO UPDATE SET name = $3, bio = $4, theme = $5, spacing = $6
-                 RETURNING id`,
-                [variationUuid, resumeId, variation.name, variation.bio, variation.theme || 'default', variation.spacing || 'normal']
+            const variationId = variationIdMap.get(variationUuid);
+            if (!variationId || !variation.bulletPoints) continue;
+
+            // Remove old visibility entries
+            await client.query(
+                'DELETE FROM bullet_point_visibility WHERE user_id = $1',
+                [userIdNum]
             );
-            const variationId = result.rows[0].id;
 
-            // Update bullet point visibility
-            if (variation.bulletPoints) {
-                // First, remove old visibility entries
+            // Insert new visibility entries
+            const visibilityValues = variation.bulletPoints
+                .filter(bp => bp.bullet_point_id && bulletIdMap.has(bp.bullet_point_id))
+                .map(bp => `(${variationId}, ${bulletIdMap.get(bp.bullet_point_id)}, ${userIdNum}, ${bp.is_visible})`);
+
+            if (visibilityValues.length > 0) {
                 await client.query(
-                    'DELETE FROM bullet_point_visibility WHERE variation_id = $1',
-                    [variationId]
+                    `INSERT INTO bullet_point_visibility 
+                     (variation_id, bullet_point_id, user_id, is_visible) 
+                     VALUES ${visibilityValues.join(',')}`
                 );
-
-                // Then insert new ones
-                const visibilityValues = variation.bulletPoints
-                    .filter(bp => bp.bullet_point_id && bulletIdMap.has(bp.bullet_point_id))
-                    .map(bp => `(${variationId}, ${bulletIdMap.get(bp.bullet_point_id)}, ${bp.is_visible})`);
-
-                if (visibilityValues.length > 0) {
-                    await client.query(
-                        `INSERT INTO bullet_point_visibility 
-                         (variation_id, bullet_point_id, is_visible) 
-                         VALUES ${visibilityValues.join(',')}`
-                    );
-                }
             }
         }
 
@@ -433,7 +531,7 @@ app.post('/api/resume/:userId', async (req, res) => {
     } catch (error) {
         await client.query('ROLLBACK');
         console.error('Error saving resume:', error);
-        res.status(500).json({ error: 'Failed to save resume data' });
+        res.status(500).json({ error: 'Failed to save resume data', details: error.message });
     } finally {
         client.release();
     }
@@ -604,25 +702,20 @@ app.put('/api/resume/:userId/variation/:variationUuid/rename', async (req, res) 
             return res.status(400).json({ error: 'Name is required' });
         }
 
-        // Get user's resume ID
-        const resumeResult = await client.query(
-            'SELECT r.id FROM resumes r JOIN users u ON r.user_id = u.id WHERE u.uuid = $1',
-            [userId]
-        );
-
-        if (resumeResult.rows.length === 0) {
-            return res.status(404).json({ error: 'Resume not found' });
+        // Get user's ID from UUID
+        const userResult = await client.query('SELECT id FROM users WHERE uuid = $1', [userId]);
+        if (userResult.rows.length === 0) {
+            return res.status(404).json({ error: 'User not found' });
         }
-
-        const resumeId = resumeResult.rows[0].id;
+        const userIdNum = userResult.rows[0].id;
 
         // Update variation name
         const result = await client.query(
             `UPDATE resume_variations 
              SET name = $1 
-             WHERE uuid = $2 AND resume_id = $3
+             WHERE uuid = $2 AND user_id = $3
              RETURNING id`,
-            [name, variationUuid, resumeId]
+            [name, variationUuid, userIdNum]
         );
 
         if (result.rows.length === 0) {
@@ -644,22 +737,17 @@ app.delete('/api/resume/:userId/variation/:variationUuid', async (req, res) => {
     try {
         const { userId, variationUuid } = req.params;
 
-        // Get user's resume ID
-        const resumeResult = await client.query(
-            'SELECT r.id FROM resumes r JOIN users u ON r.user_id = u.id WHERE u.uuid = $1',
-            [userId]
-        );
-
-        if (resumeResult.rows.length === 0) {
-            return res.status(404).json({ error: 'Resume not found' });
+        // Get user's ID from UUID
+        const userResult = await client.query('SELECT id FROM users WHERE uuid = $1', [userId]);
+        if (userResult.rows.length === 0) {
+            return res.status(404).json({ error: 'User not found' });
         }
-
-        const resumeId = resumeResult.rows[0].id;
+        const userIdNum = userResult.rows[0].id;
 
         // Count total variations
         const countResult = await client.query(
-            'SELECT COUNT(*) FROM resume_variations WHERE resume_id = $1',
-            [resumeId]
+            'SELECT COUNT(*) FROM resume_variations WHERE user_id = $1',
+            [userIdNum]
         );
 
         if (parseInt(countResult.rows[0].count) <= 1) {
@@ -669,9 +757,9 @@ app.delete('/api/resume/:userId/variation/:variationUuid', async (req, res) => {
         // Delete variation
         const result = await client.query(
             `DELETE FROM resume_variations 
-             WHERE uuid = $1 AND resume_id = $2
+             WHERE uuid = $1 AND user_id = $2
              RETURNING id`,
-            [variationUuid, resumeId]
+            [variationUuid, userIdNum]
         );
 
         if (result.rows.length === 0) {
