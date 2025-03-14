@@ -198,28 +198,26 @@ app.post('/api/login', async (req, res) => {
                                 [uuidv4(), jobResult.rows[0].id, user.id, bullet.content, bullet.order_index]
                             );
 
-                            // Only set visibility for this variation based on the imported data
-                            // For the new variation
+                            // Set visibility for the new variation based on the original bullet point's visibility
                             const bulletVisibility = existingVariation.bulletPoints.find(
                                 bp => bp.bullet_point_id === bullet.id
                             );
 
-                            if (bulletVisibility) {
+                            await client.query(
+                                `INSERT INTO bullet_point_visibility (variation_id, bullet_point_id, user_id, is_visible)
+                                 VALUES ($1, $2, $3, $4)`,
+                                [variationId, bulletResult.rows[0].id, user.id, bulletVisibility?.is_visible ?? true]
+                            );
+
+                            // For all existing variations (excluding the new one), set visibility to false for the new bullet points
+                            if (existingVariationIds.length > 0) {
                                 await client.query(
                                     `INSERT INTO bullet_point_visibility (variation_id, bullet_point_id, user_id, is_visible)
-                                     VALUES ($1, $2, $3, $4)`,
-                                    [variationId, bulletResult.rows[0].id, user.id, bulletVisibility.is_visible]
+                                     SELECT v.id, $1, $2, false
+                                     FROM UNNEST($3::int[]) AS v(id)
+                                     WHERE v.id != $4`, /* Exclude the new variation */
+                                    [bulletResult.rows[0].id, user.id, existingVariationIds, variationId]
                                 );
-
-                                // For all existing variations, set visibility to false for the new bullet points
-                                if (existingVariationIds.length > 0) {
-                                    await client.query(
-                                        `INSERT INTO bullet_point_visibility (variation_id, bullet_point_id, user_id, is_visible)
-                                         SELECT v.id, $1, $2, false
-                                         FROM UNNEST($3::int[]) AS v(id)`,
-                                        [bulletResult.rows[0].id, user.id, existingVariationIds]
-                                    );
-                                }
                             }
                         }
                     }
@@ -265,7 +263,7 @@ app.get('/api/resume/:userId', async (req, res) => {
 
         // Get all variations for the user
         const variationsResult = await client.query(
-            'SELECT id, uuid, name, bio, theme, spacing, is_default FROM resume_variations WHERE user_id = $1',
+            'SELECT id, uuid, name, bio, theme, spacing, is_default FROM resume_variations WHERE user_id = $1 ORDER BY id DESC',
             [user.id]
         );
 
