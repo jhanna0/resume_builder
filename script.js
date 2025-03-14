@@ -570,6 +570,7 @@ function moveJob(button, direction) {
     const jobId = jobDiv.dataset.jobId;
     const currentSection = jobDiv.closest('.section');
     const currentSectionId = currentSection.dataset.sectionId;
+    const jobsContainer = currentSection.querySelector('.section-jobs');
 
     // Find job and relevant sections in state
     const job = state.jobs.find(j => j.id === jobId);
@@ -589,16 +590,26 @@ function moveJob(button, direction) {
             const temp = job.order_index;
             job.order_index = sectionJobs[currentJobIndex - 1].order_index;
             sectionJobs[currentJobIndex - 1].order_index = temp;
+
+            // Move DOM element
+            const prevJob = jobsContainer.querySelector(`[data-job-id="${sectionJobs[currentJobIndex - 1].id}"]`);
+            if (prevJob) {
+                jobsContainer.insertBefore(jobDiv, prevJob);
+            }
         } else if (currentSectionIndex > 0) {
             // Move to end of previous section
+            const prevSection = document.querySelector(`[data-section-id="${sections[currentSectionIndex - 1].id}"]`);
+            const prevSectionJobs = prevSection.querySelector('.section-jobs');
             const prevSectionId = sections[currentSectionIndex - 1].id;
-            const prevSectionJobs = state.jobs
-                .filter(j => j.section_id === prevSectionId);
+            const prevSectionJobsState = state.jobs.filter(j => j.section_id === prevSectionId);
 
             job.section_id = prevSectionId;
-            job.order_index = prevSectionJobs.length > 0
-                ? Math.max(...prevSectionJobs.map(j => j.order_index)) + 1
+            job.order_index = prevSectionJobsState.length > 0
+                ? Math.max(...prevSectionJobsState.map(j => j.order_index)) + 1
                 : 0;
+
+            // Move DOM element
+            prevSectionJobs.appendChild(jobDiv);
         }
     } else if (direction === 'down') {
         if (currentJobIndex < sectionJobs.length - 1) {
@@ -606,27 +617,46 @@ function moveJob(button, direction) {
             const temp = job.order_index;
             job.order_index = sectionJobs[currentJobIndex + 1].order_index;
             sectionJobs[currentJobIndex + 1].order_index = temp;
+
+            // Move DOM element
+            const nextJob = jobsContainer.querySelector(`[data-job-id="${sectionJobs[currentJobIndex + 1].id}"]`);
+            if (nextJob && nextJob.nextSibling) {
+                jobsContainer.insertBefore(jobDiv, nextJob.nextSibling);
+            } else if (nextJob) {
+                jobsContainer.appendChild(jobDiv);
+            }
         } else if (currentSectionIndex < sections.length - 1) {
             // Move to beginning of next section
+            const nextSection = document.querySelector(`[data-section-id="${sections[currentSectionIndex + 1].id}"]`);
+            const nextSectionJobs = nextSection.querySelector('.section-jobs');
             const nextSectionId = sections[currentSectionIndex + 1].id;
-            const nextSectionJobs = state.jobs
-                .filter(j => j.section_id === nextSectionId);
+            const nextSectionJobsState = state.jobs.filter(j => j.section_id === nextSectionId);
 
             job.section_id = nextSectionId;
-            job.order_index = nextSectionJobs.length > 0
-                ? Math.min(...nextSectionJobs.map(j => j.order_index)) - 1
+            job.order_index = nextSectionJobsState.length > 0
+                ? Math.min(...nextSectionJobsState.map(j => j.order_index)) - 1
                 : 0;
+
+            // Move DOM element to beginning of next section's jobs
+            const firstJob = nextSectionJobs.firstChild;
+            if (firstJob) {
+                nextSectionJobs.insertBefore(jobDiv, firstJob);
+            } else {
+                nextSectionJobs.appendChild(jobDiv);
+            }
         }
     }
 
-    // Normalize indices for all affected sections
-    sections.forEach(section => {
-        const sectionJobs = state.jobs.filter(j => j.section_id === section.id);
-        normalizeOrderIndices(sectionJobs);
-    });
+    // Normalize indices for affected sections
+    [currentSectionId, sections[currentSectionIndex - 1]?.id, sections[currentSectionIndex + 1]?.id]
+        .filter(Boolean)
+        .forEach(sectionId => {
+            const sectionJobs = state.jobs.filter(j => j.section_id === sectionId);
+            normalizeOrderIndices(sectionJobs);
+        });
 
-    // Update UI to reflect state changes
-    updateUI();
+    // Update resume preview only
+    updateResume();
 }
 
 function moveBullet(button, direction) {
@@ -634,6 +664,7 @@ function moveBullet(button, direction) {
     const bulletId = bulletDiv.dataset.bulletId;
     const jobDiv = bulletDiv.closest('.job');
     const jobId = jobDiv.dataset.jobId;
+    const bulletContainer = bulletDiv.closest('.bulletPointsContainer');
 
     // Find bullet points for this job
     const jobBullets = state.bulletPoints
@@ -643,25 +674,38 @@ function moveBullet(button, direction) {
     const currentBulletIndex = jobBullets.findIndex(b => b.id === bulletId);
     const bullet = jobBullets[currentBulletIndex];
 
-    // Swap with previous/next bullet based on direction
     if (direction === 'up' && currentBulletIndex > 0) {
         // Move up means decreasing order_index
         const temp = bullet.order_index;
         bullet.order_index = jobBullets[currentBulletIndex - 1].order_index;
         jobBullets[currentBulletIndex - 1].order_index = temp;
+
+        // Move DOM element
+        const prevBullet = bulletContainer.querySelector(`[data-bullet-id="${jobBullets[currentBulletIndex - 1].id}"]`);
+        if (prevBullet) {
+            bulletContainer.insertBefore(bulletDiv, prevBullet);
+        }
     } else if (direction === 'down' && currentBulletIndex < jobBullets.length - 1) {
         // Move down means increasing order_index
         const temp = bullet.order_index;
         bullet.order_index = jobBullets[currentBulletIndex + 1].order_index;
         jobBullets[currentBulletIndex + 1].order_index = temp;
+
+        // Move DOM element
+        const nextBullet = bulletContainer.querySelector(`[data-bullet-id="${jobBullets[currentBulletIndex + 1].id}"]`);
+        if (nextBullet && nextBullet.nextSibling) {
+            bulletContainer.insertBefore(bulletDiv, nextBullet.nextSibling);
+        } else if (nextBullet) {
+            bulletContainer.appendChild(bulletDiv);
+        }
     }
 
     // Normalize indices for all bullets in this job
     const allJobBullets = state.bulletPoints.filter(b => b.job_id === jobId);
     normalizeOrderIndices(allJobBullets);
 
-    // Update UI to reflect state changes
-    updateUI();
+    // Update resume preview only
+    updateResume();
 }
 
 function duplicateBullet(button) {
@@ -670,54 +714,55 @@ function duplicateBullet(button) {
     const jobId = jobDiv.dataset.jobId;
     const originalBulletId = bulletDiv.dataset.bulletId;
 
+    // Find the original bullet point in state
+    const originalBullet = state.bulletPoints.find(bp => bp.id === originalBulletId);
+    if (!originalBullet) return;
+
     // Create new bullet point data
     const newBulletId = generateId();
-    const originalBullet = state.bulletPoints[originalBulletId];
-
-    // Copy the original bullet's text
-    state.bulletPoints[newBulletId] = {
+    const newBullet = {
         id: newBulletId,
-        text: originalBullet.text
+        job_id: jobId,
+        content: originalBullet.content,
+        order_index: originalBullet.order_index // Same order index initially
     };
 
-    // Insert the new bullet ID after the original one in the job's bulletPoints array
-    const job = state.jobs[jobId];
-    const originalIndex = job.bulletPoints.indexOf(originalBulletId);
-    job.bulletPoints.splice(originalIndex + 1, 0, newBulletId);
+    // Add to state
+    state.bulletPoints.push(newBullet);
 
-    // Copy the visibility state from the original bullet
-    state.variations[state.currentVariation].selectedBullets[newBulletId] =
-        state.variations[state.currentVariation].selectedBullets[originalBulletId] || false;
+    // Shift all bullets after the original down by 1
+    state.bulletPoints
+        .filter(b => b.job_id === jobId && b.order_index >= originalBullet.order_index)
+        .forEach(b => b.order_index++);
+
+    // Add visibility state to all variations
+    Object.values(state.variations).forEach(variation => {
+        if (!variation.bulletPoints) {
+            variation.bulletPoints = [];
+        }
+        // Set original bullet to invisible and new bullet to visible
+        const originalVisibility = variation.bulletPoints.find(bp => bp.bullet_point_id === originalBulletId);
+        if (originalVisibility) {
+            originalVisibility.is_visible = false;
+        }
+        variation.bulletPoints.push({
+            bullet_point_id: newBulletId,
+            is_visible: true
+        });
+    });
 
     // Create and insert the new bullet point UI element
-    const template = document.getElementById('bullet-template');
-    const newBulletDiv = template.content.cloneNode(true).firstElementChild;
-    newBulletDiv.dataset.bulletId = newBulletId;
+    const bulletContainer = bulletDiv.closest('.bulletPointsContainer');
+    const newBulletDiv = addBulletPoint(bulletContainer, newBullet, true);
 
-    // Set up the new bullet point
-    const textArea = newBulletDiv.querySelector('textarea');
-    const checkbox = newBulletDiv.querySelector('input[type="checkbox"]');
+    // Insert the new bullet point before the original one
+    bulletDiv.insertAdjacentElement('beforebegin', newBulletDiv);
 
-    textArea.value = originalBullet.text;
-    checkbox.checked = state.variations[state.currentVariation].selectedBullets[newBulletId];
+    // Update checkbox states
+    bulletDiv.querySelector('input[type="checkbox"]').checked = false;
+    newBulletDiv.querySelector('input[type="checkbox"]').checked = true;
 
-    // Add event listeners
-    textArea.addEventListener('input', () => {
-        state.bulletPoints[newBulletId].text = textArea.value;
-        autoResizeTextarea(textArea);
-        updateResume();
-    });
-
-    checkbox.addEventListener('change', () => {
-        state.variations[state.currentVariation].selectedBullets[newBulletId] = checkbox.checked;
-        updateResume();
-    });
-
-    // Insert the new bullet point right after the original one
-    bulletDiv.insertAdjacentElement('afterend', newBulletDiv);
-
-    // Initial resize for the textarea
-    autoResizeTextarea(textArea);
+    // Update resume
     updateResume();
 }
 
@@ -1880,6 +1925,7 @@ window.loadResume = function () {
 function moveSection(button, direction) {
     const sectionDiv = button.closest('.section');
     const sectionId = sectionDiv.dataset.sectionId;
+    const sectionsContainer = document.getElementById('sectionsContainer');
 
     // Find section in state
     const sections = state.sections;
@@ -1890,18 +1936,32 @@ function moveSection(button, direction) {
         const temp = sections[currentIndex].order_index;
         sections[currentIndex].order_index = sections[currentIndex - 1].order_index;
         sections[currentIndex - 1].order_index = temp;
+
+        // Move DOM element
+        const prevSection = sectionsContainer.querySelector(`[data-section-id="${sections[currentIndex - 1].id}"]`);
+        if (prevSection) {
+            sectionsContainer.insertBefore(sectionDiv, prevSection);
+        }
     } else if (direction === 'down' && currentIndex < sections.length - 1) {
         // Swap order_index with next section
         const temp = sections[currentIndex].order_index;
         sections[currentIndex].order_index = sections[currentIndex + 1].order_index;
         sections[currentIndex + 1].order_index = temp;
+
+        // Move DOM element
+        const nextSection = sectionsContainer.querySelector(`[data-section-id="${sections[currentIndex + 1].id}"]`);
+        if (nextSection && nextSection.nextSibling) {
+            sectionsContainer.insertBefore(sectionDiv, nextSection.nextSibling);
+        } else if (nextSection) {
+            sectionsContainer.appendChild(sectionDiv);
+        }
     }
 
     // Normalize indices to ensure they're continuous
     normalizeOrderIndices(sections);
 
-    // Update UI to reflect state changes
-    updateUI();
+    // Update resume preview only
+    updateResume();
 }
 
 function deleteSection(button) {

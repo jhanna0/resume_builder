@@ -170,14 +170,32 @@ app.post('/api/login', async (req, res) => {
 
                 // Process each section from the existing variation
                 for (const section of existingVariation.sections || []) {
-                    // Create a new section
+                    // Get the max order_index for existing sections
+                    const maxOrderResult = await client.query(
+                        `SELECT COALESCE(MAX(order_index), -1) as max_order 
+                         FROM sections 
+                         WHERE user_id = $1`,
+                        [user.id]
+                    );
+                    const nextOrderIndex = maxOrderResult.rows[0].max_order + 1;
+
+                    // Create a new section with incremented order_index
                     const newSectionResult = await client.query(
                         `INSERT INTO sections (uuid, user_id, name, order_index)
                          VALUES ($1, $2, $3, $4)
                          RETURNING id`,
-                        [uuidv4(), user.id, section.name, section.order_index]
+                        [uuidv4(), user.id, section.name, nextOrderIndex]
                     );
                     const newSectionId = newSectionResult.rows[0].id;
+
+                    // Get max order_index for jobs in this section
+                    const maxJobOrderResult = await client.query(
+                        `SELECT COALESCE(MAX(order_index), -1) as max_order 
+                         FROM jobs 
+                         WHERE section_id = $1`,
+                        [newSectionId]
+                    );
+                    let nextJobOrderIndex = maxJobOrderResult.rows[0].max_order + 1;
 
                     // Insert jobs for this section
                     const sectionJobs = existingVariation.jobs.filter(j => j.section_id === section.id);
@@ -187,8 +205,17 @@ app.post('/api/login', async (req, res) => {
                              VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
                              RETURNING id`,
                             [uuidv4(), newSectionId, user.id, job.title, job.company,
-                            job.start_date, job.end_date, job.order_index]
+                            job.start_date, job.end_date, nextJobOrderIndex++]
                         );
+
+                        // Get max order_index for bullet points in this job
+                        const maxBulletOrderResult = await client.query(
+                            `SELECT COALESCE(MAX(order_index), -1) as max_order 
+                             FROM bullet_points 
+                             WHERE job_id = $1`,
+                            [jobResult.rows[0].id]
+                        );
+                        let nextBulletOrderIndex = maxBulletOrderResult.rows[0].max_order + 1;
 
                         // Insert bullet points for this job
                         const jobBullets = existingVariation.bulletPoints.filter(b => b.job_id === job.id);
@@ -197,7 +224,7 @@ app.post('/api/login', async (req, res) => {
                                 `INSERT INTO bullet_points (uuid, job_id, user_id, content, order_index)
                                  VALUES ($1, $2, $3, $4, $5)
                                  RETURNING id`,
-                                [uuidv4(), jobResult.rows[0].id, user.id, bullet.content, bullet.order_index]
+                                [uuidv4(), jobResult.rows[0].id, user.id, bullet.content, nextBulletOrderIndex++]
                             );
 
                             // Set visibility for the new variation based on the original bullet point's visibility
