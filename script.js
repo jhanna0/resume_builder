@@ -205,77 +205,8 @@ async function saveResume() {
 
     // If not authenticated, show auth modal and wait for authentication
     if (!state.isAuthenticated) {
-        // Store the current resume data to be saved after authentication
-        const resumeToSave = {
-            full_name: document.getElementById('name').value,
-            contact_info: document.getElementById('contact').value,
-            sections: state.sections,
-            jobs: state.jobs,
-            bulletPoints: state.bulletPoints,
-            variations: state.variations
-        };
-
-        // Show auth modal
         showAuthModal();
-
-        // Create a promise that resolves when authentication is complete
-        const authPromise = new Promise((resolve, reject) => {
-            // Store the original login/signup functions
-            const originalLogin = window.login;
-            const originalSignup = window.signup;
-
-            // Override login function
-            window.login = async function () {
-                try {
-                    await originalLogin();
-                    resolve();
-                } catch (error) {
-                    reject(error);
-                }
-            };
-
-            // Override signup function
-            window.signup = async function () {
-                try {
-                    await originalSignup();
-                    resolve();
-                } catch (error) {
-                    reject(error);
-                }
-            };
-
-            // Handle modal close
-            const handleModalClose = () => {
-                // Restore original functions
-                window.login = originalLogin;
-                window.signup = originalSignup;
-                reject(new Error('Authentication cancelled'));
-            };
-
-            // Add event listener for modal close
-            const closeBtn = document.querySelector('.close');
-            closeBtn.addEventListener('click', handleModalClose);
-            window.addEventListener('click', (event) => {
-                if (event.target === authModal) {
-                    handleModalClose();
-                }
-            });
-        });
-
-        try {
-            // Wait for authentication to complete
-            await authPromise;
-            // After successful authentication, save the resume
-            await saveResumeToServer(resumeToSave);
-        } catch (error) {
-            if (error.message === 'Authentication cancelled') {
-                console.log('Save cancelled by user');
-                return;
-            }
-            console.error('Error during save:', error);
-            alert('Failed to save resume. Please try again.');
-        }
-        return;
+        return; // Don't proceed with save - the login process will handle merging the data
     }
 
     // If authenticated, proceed with normal save
@@ -1382,7 +1313,7 @@ async function login() {
         updateAuthUI();
 
         // Load the user's resume from the server
-        await loadResume();
+        await loadResume();  // This loads their existing data
     } catch (error) {
         errorElement.textContent = error.message;
     }

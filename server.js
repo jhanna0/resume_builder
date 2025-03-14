@@ -149,31 +149,16 @@ app.post('/api/login', async (req, res) => {
                 const importedVariationUuid = uuidv4();
                 const variationResult = await client.query(
                     `INSERT INTO resume_variations (uuid, user_id, name, bio, theme, spacing, is_default)
-                     VALUES ($1, $2, $3, $4, $5, $6, $7)
+                     VALUES ($1, $2, $3, $4, $5, $6, false)
                      RETURNING id`,
                     [importedVariationUuid, user.id, 'Imported Resume',
                         existingVariation.bio || '', existingVariation.theme || 'default',
-                        existingVariation.spacing || 'normal', false]
+                        existingVariation.spacing || 'normal']
                 );
                 const variationId = variationResult.rows[0].id;
 
-                // Get existing sections for name matching
-                const existingSectionsResult = await client.query(
-                    `SELECT id, name FROM sections 
-                     WHERE user_id = $1`,
-                    [user.id]
-                );
-
-                // Create a map of section names to their IDs
-                const sectionNameToId = new Map(
-                    existingSectionsResult.rows.map(s => [s.name.toLowerCase(), s.id])
-                );
-
                 // Process each section from the existing variation
                 for (const section of existingVariation.sections || []) {
-                    const sectionNameLower = section.name.toLowerCase();
-                    let targetSectionId;
-
                     // Create a new section
                     const newSectionResult = await client.query(
                         `INSERT INTO sections (uuid, user_id, name, order_index)
@@ -181,16 +166,16 @@ app.post('/api/login', async (req, res) => {
                          RETURNING id`,
                         [uuidv4(), user.id, section.name, section.order_index]
                     );
-                    targetSectionId = newSectionResult.rows[0].id;
+                    const newSectionId = newSectionResult.rows[0].id;
 
                     // Insert jobs for this section
                     const sectionJobs = existingVariation.jobs.filter(j => j.section_id === section.id);
                     for (const job of sectionJobs) {
                         const jobResult = await client.query(
-                            `INSERT INTO jobs (uuid, section_id, title, company, start_date, end_date, order_index)
-                             VALUES ($1, $2, $3, $4, $5, $6, $7)
+                            `INSERT INTO jobs (uuid, section_id, user_id, title, company, start_date, end_date, order_index)
+                             VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
                              RETURNING id`,
-                            [uuidv4(), targetSectionId, job.title, job.company,
+                            [uuidv4(), newSectionId, user.id, job.title, job.company,
                             job.start_date, job.end_date, job.order_index]
                         );
 
@@ -198,10 +183,10 @@ app.post('/api/login', async (req, res) => {
                         const jobBullets = existingVariation.bulletPoints.filter(b => b.job_id === job.id);
                         for (const bullet of jobBullets) {
                             const bulletResult = await client.query(
-                                `INSERT INTO bullet_points (uuid, job_id, content, order_index)
-                                 VALUES ($1, $2, $3, $4)
+                                `INSERT INTO bullet_points (uuid, job_id, user_id, content, order_index)
+                                 VALUES ($1, $2, $3, $4, $5)
                                  RETURNING id`,
-                                [uuidv4(), jobResult.rows[0].id, bullet.content, bullet.order_index]
+                                [uuidv4(), jobResult.rows[0].id, user.id, bullet.content, bullet.order_index]
                             );
 
                             // Set bullet point visibility
@@ -210,9 +195,9 @@ app.post('/api/login', async (req, res) => {
                             )?.is_visible ?? true;
 
                             await client.query(
-                                `INSERT INTO bullet_point_visibility (variation_id, bullet_point_id, is_visible)
-                                 VALUES ($1, $2, $3)`,
-                                [variationId, bulletResult.rows[0].id, bulletVisibility]
+                                `INSERT INTO bullet_point_visibility (variation_id, bullet_point_id, user_id, is_visible)
+                                 VALUES ($1, $2, $3, $4)`,
+                                [variationId, bulletResult.rows[0].id, user.id, bulletVisibility]
                             );
                         }
                     }
