@@ -374,15 +374,6 @@
 
 /* Theme variables */
 :root {
-    /* Default theme (Modern Pink) */
-    --theme-primary: #ff4b91;
-    --theme-secondary: #ff85b1;
-    --theme-text: #2d3748;
-    --theme-heading: #1a202c;
-    --theme-bullet: #ff4b91;
-    --theme-underline: #ff85b1;
-    --theme-gradient-start: #ff4b91;
-    --theme-gradient-end: #ff85b1;
     --theme-link: #2563eb;
 
     /* Spacing variables - Normal by default */
@@ -454,6 +445,18 @@
     --resume-bullet-size: 14px;
 }
 
+[data-theme="pink"] {
+    /* Default theme (Modern Pink) */
+    --theme-primary: #ff4b91;
+    --theme-secondary: #ff85b1;
+    --theme-text: #2d3748;
+    --theme-heading: #1a202c;
+    --theme-bullet: #ff4b91;
+    --theme-underline: #ff85b1;
+    --theme-gradient-start: #ff4b91;
+    --theme-gradient-end: #ff85b1;
+}
+
 /* Classic Black & White theme */
 [data-theme="classic"] {
     --theme-primary: #000000;
@@ -469,7 +472,7 @@
 }
 
 /* Ocean Blue theme */
-[data-theme="ocean"] {
+[data-theme="default"] {
     --theme-primary: #2b6cb0;
     --theme-secondary: #4299e1;
     --theme-text: #2d3748;

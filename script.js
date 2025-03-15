@@ -42,7 +42,7 @@ const introCloseBtn = introModal.querySelector('.close');
 
 // Show intro modal if it's the user's first time
 function showIntroModalIfFirstTime() {
-    if (!localStorage.getItem('hasSeenIntro')) {
+    if (localStorage.getItem('hasSeenIntro')) {
         introModal.style.display = 'block';
     }
 }
@@ -224,6 +224,8 @@ function isJobEmpty(job) {
 async function saveResume() {
     // Filter out empty jobs before saving
     const nonEmptyJobs = state.jobs.filter(job => !isJobEmpty(job));
+
+    console.log(state);
 
     // If jobs were filtered out, update the state
     if (nonEmptyJobs.length !== state.jobs.length) {
@@ -1712,6 +1714,26 @@ async function exportToPDF() {
     const element = document.getElementById('resumeContent');
     const currentTheme = document.getElementById('themeSelect').value;
 
+    if (!state.isAuthenticated) {
+        showAuthModal();
+        return; // Don't proceed with save - the login process will handle merging the data
+    }
+
+    // Check if resume has content before proceeding
+    const currentVariation = state.variations[state.currentVariation];
+    if (!hasContent({
+        full_name: state.full_name,
+        contact_info: state.contact_info,
+        sections: state.sections,
+        jobs: state.jobs,
+        bulletPoints: state.bulletPoints,
+        bio: currentVariation?.bio,
+        theme: currentVariation?.theme,
+        spacing: currentVariation?.spacing
+    })) {
+        return;
+    }
+
     try {
         // Add PDF-specific class
         element.classList.add('generating-pdf');
@@ -2150,7 +2172,7 @@ function updateAuthUI() {
     } else {
         authButton.style.display = 'block';
         signOutButton.style.display = 'none';
-        toolbarControls.forEach(control => control.style.display = 'none');
+        // toolbarControls.forEach(control => control.style.display = 'none');
     }
 }
 
