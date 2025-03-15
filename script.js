@@ -36,6 +36,39 @@ let state = {
 let hasUnsavedChanges = false;
 let currentSpacing = 'normal';
 
+// Intro Modal
+const introModal = document.getElementById('introModal');
+const introCloseBtn = introModal.querySelector('.close');
+
+// Show intro modal if it's the user's first time
+function showIntroModalIfFirstTime() {
+    if (!localStorage.getItem('hasSeenIntro')) {
+        introModal.style.display = 'block';
+    }
+}
+
+// Hide intro modal and mark as seen
+function hideIntroModal() {
+    introModal.style.display = 'none';
+    localStorage.setItem('hasSeenIntro', 'true');
+}
+
+// Close intro modal when clicking the close button
+introCloseBtn.onclick = hideIntroModal;
+
+// Close intro modal when clicking outside
+window.addEventListener('click', function (event) {
+    if (event.target === introModal) {
+        hideIntroModal();
+    }
+});
+
+// Make hideIntroModal available globally
+window.hideIntroModal = hideIntroModal;
+
+// Show intro modal on first visit (call this after DOM is loaded)
+document.addEventListener('DOMContentLoaded', showIntroModalIfFirstTime);
+
 // Auth Modal
 const authModal = document.getElementById('authModal');
 const closeBtn = document.querySelector('.close');
