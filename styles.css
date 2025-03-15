@@ -2,33 +2,30 @@
 
 :root {
     /* Colors */
-    --primary: #2b6cb0;
-    /* Professional blue */
-    --primary-dark: #1e4e8c;
-    /* Darker blue */
-    --secondary: #4299e1;
-    /* Light blue */
-    --accent: #2c5282;
-    /* Navy blue */
-    --accent-light: #bee3f8;
-    /* Light blue */
-    --danger: #e53e3e;
-    /* Red */
-    --danger-light: #fed7d7;
-    /* Light red */
-
-    /* Gradient Colors */
-    --gradient-start: #2b6cb0;
-    --gradient-end: #4299e1;
+    --primary: #1e3a5f;
+    /* Deep professional blue */
+    --primary-dark: #162b47;
+    /* Dark navy */
+    --secondary: #3a6ea5;
+    /* Muted blue */
+    --accent: #1b4d7a;
+    /* Darker blue for accents */
+    --accent-light: #a3c4e8;
+    /* Softer light blue */
+    --danger: #c53030;
+    /* Muted deep red */
+    --danger-light: #f5b5b5;
+    /* Softer light red */
 
     /* Neutral Colors - Cool professional tones */
-    --neutral-50: #FFFFFF;
-    --neutral-100: #F7FAFC;
-    --neutral-200: #EDF2F7;
-    --neutral-300: #E2E8F0;
-    --neutral-600: #4A5568;
-    --neutral-700: #2D3748;
-    --neutral-800: #1A202C;
+    --neutral-50: #ffffff;
+    --neutral-100: #f8f9fa;
+    --neutral-200: #e9ecef;
+    --neutral-300: #dee2e6;
+    --neutral-600: #495057;
+    --neutral-700: #343a40;
+    --neutral-800: #212529;
+
 
     /* Typography */
     --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
@@ -66,7 +63,7 @@ body {
 
 /* Global button style */
 button {
-    background: linear-gradient(135deg, var(--gradient-start), var(--gradient-end));
+    background: var(--secondary);
     color: white;
     border: none;
     padding: var(--space-2) var(--space-3);

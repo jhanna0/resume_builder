@@ -16,7 +16,7 @@
     align-items: center;
     justify-content: space-between;
     padding: var(--space-3) var(--space-6);
-    background: linear-gradient(135deg, var(--primary), var(--secondary));
+    background: var(--secondary);
     position: sticky;
     top: 0;
     z-index: 10;
@@ -103,7 +103,7 @@
     border: 1px solid rgba(255, 255, 255, 0.3);
     border-radius: 6px;
     background: rgba(255, 255, 255, 0.95);
-    color: var(--neutral-600);
+    /* color: var(--neutral-600); */
     font-size: 16px;
     cursor: pointer;
     transition: all 0.2s ease;
@@ -265,18 +265,18 @@
     width: auto;
 }
 
-/* Toolbar buttons */
 .resume-toolbar button {
-    background: rgba(255, 255, 255, 0.15);
-    border: 1px solid rgba(255, 255, 255, 0.3);
-    transition: all 0.2s ease;
+    background: rgba(80, 100, 120, 0.3);
+    border: 1px solid rgba(200, 220, 240, 0.5);
+    color: #ffffff;
 }
 
 .resume-toolbar button:hover {
-    background: rgba(255, 255, 255, 0.25);
-    border-color: rgba(255, 255, 255, 0.4);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    background: rgba(110, 130, 150, 0.4);
+    border-color: rgba(220, 240, 255, 0.6);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
 }
+
 
 .unsaved-indicator {
     position: fixed;
@@ -533,11 +533,6 @@
     box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.2);
 }
 
-/* Update existing elements to use theme variables */
-.resume-toolbar {
-    background: linear-gradient(135deg, var(--primary), var(--secondary));
-}
-
 .resume-header h1 {
     color: var(--theme-heading);
 }
@@ -643,23 +638,4 @@
 
 .auth-btn:hover {
     opacity: 0.9;
-}
-
-/* Fill Sample Data button */
-.fill-sample-btn {
-    padding: 8px 16px;
-    font-size: 14px;
-    font-weight: 500;
-    border-radius: 6px;
-    background: rgba(255, 255, 255, 0.15);
-    color: white;
-    border: 1px solid rgba(255, 255, 255, 0.3);
-    cursor: pointer;
-    transition: all 0.2s ease;
-}
-
-.fill-sample-btn:hover {
-    background: rgba(255, 255, 255, 0.25);
-    border-color: rgba(255, 255, 255, 0.4);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }

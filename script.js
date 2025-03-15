@@ -185,7 +185,7 @@ function addSection(sectionData = null) {
                 <button onclick="moveSection(this, 'up')" title="Move Up">↑</button>
                 <button onclick="moveSection(this, 'down')" title="Move Down">↓</button>
             </div>
-            <button onclick="deleteSection(this)" class="delete-section" title="Delete Section">×</button>
+            <button onclick="deleteSection(this)" class="delete-job" title="Delete Section">×</button>
         </div>
         <div class="section-jobs"></div>
     `;
@@ -1542,7 +1542,7 @@ function updateUI() {
                         <button onclick="moveSection(this, 'up')" title="Move Up">↑</button>
                         <button onclick="moveSection(this, 'down')" title="Move Down">↓</button>
                     </div>
-                    <button onclick="deleteSection(this)" class="delete-section" title="Delete Section">×</button>
+                    <button onclick="deleteSection(this)" class="delete-job" title="Delete Section">×</button>
                 </div>
                 <div class="section-jobs"></div>
             `;
