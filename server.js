@@ -131,7 +131,7 @@ app.post('/api/login', async (req, res) => {
             return res.status(401).json({ error: 'Invalid email or password' });
         }
 
-        // If we have an existing variation, merge it with the user's variations
+        // If we have existing variations, merge them with the user's variations
         if (existingVariation) {
             await client.query('BEGIN');
 
@@ -147,106 +147,106 @@ app.post('/api/login', async (req, res) => {
                     );
                 }
 
-                // Create a new variation for the imported resume with today's date as name
-                const today = new Date();
-                const variationName = today.toISOString().split('T')[0]; // Format: YYYY-MM-DD
-                const importedVariationUuid = uuidv4();
-                const variationResult = await client.query(
-                    `INSERT INTO resume_variations (uuid, user_id, name, bio, theme, spacing, is_default)
-                     VALUES ($1, $2, $3, $4, $5, $6, false)
-                     RETURNING id`,
-                    [importedVariationUuid, user.id, variationName,
-                        existingVariation.bio || '', existingVariation.theme || 'default',
-                        existingVariation.spacing || 'normal']
-                );
-                const variationId = variationResult.rows[0].id;
-
-                // Get all existing variations for the user
-                const existingVariationsResult = await client.query(
-                    `SELECT id FROM resume_variations WHERE user_id = $1 AND id != $2`,
-                    [user.id, variationId]
-                );
-                const existingVariationIds = existingVariationsResult.rows.map(row => row.id);
-
-                // Process each section from the existing variation
-                for (const section of existingVariation.sections || []) {
-                    // Get the max order_index for existing sections
-                    const maxOrderResult = await client.query(
-                        `SELECT COALESCE(MAX(order_index), -1) as max_order 
-                         FROM sections 
-                         WHERE user_id = $1`,
-                        [user.id]
-                    );
-                    const nextOrderIndex = maxOrderResult.rows[0].max_order + 1;
-
-                    // Create a new section with incremented order_index
-                    const newSectionResult = await client.query(
-                        `INSERT INTO sections (uuid, user_id, name, order_index)
-                         VALUES ($1, $2, $3, $4)
+                // Process each variation from the existing data
+                for (const [variationUuid, variation] of Object.entries(existingVariation.variations)) {
+                    // Create a new variation
+                    const variationResult = await client.query(
+                        `INSERT INTO resume_variations (uuid, user_id, name, bio, theme, spacing, is_default)
+                         VALUES ($1, $2, $3, $4, $5, $6, false)
                          RETURNING id`,
-                        [uuidv4(), user.id, section.name, nextOrderIndex]
+                        [uuidv4(), user.id, variation.name,
+                        variation.bio || '', variation.theme || 'default',
+                        variation.spacing || 'normal']
                     );
-                    const newSectionId = newSectionResult.rows[0].id;
+                    const variationId = variationResult.rows[0].id;
 
-                    // Get max order_index for jobs in this section
-                    const maxJobOrderResult = await client.query(
-                        `SELECT COALESCE(MAX(order_index), -1) as max_order 
-                         FROM jobs 
-                         WHERE section_id = $1`,
-                        [newSectionId]
+                    // Get all existing variations for the user
+                    const existingVariationsResult = await client.query(
+                        `SELECT id FROM resume_variations WHERE user_id = $1 AND id != $2`,
+                        [user.id, variationId]
                     );
-                    let nextJobOrderIndex = maxJobOrderResult.rows[0].max_order + 1;
+                    const existingVariationIds = existingVariationsResult.rows.map(row => row.id);
 
-                    // Insert jobs for this section
-                    const sectionJobs = existingVariation.jobs.filter(j => j.section_id === section.id);
-                    for (const job of sectionJobs) {
-                        const jobResult = await client.query(
-                            `INSERT INTO jobs (uuid, section_id, user_id, title, company, start_date, end_date, order_index)
-                             VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-                             RETURNING id`,
-                            [uuidv4(), newSectionId, user.id, job.title, job.company,
-                            job.start_date, job.end_date, nextJobOrderIndex++]
-                        );
-
-                        // Get max order_index for bullet points in this job
-                        const maxBulletOrderResult = await client.query(
+                    // Process each section
+                    for (const section of existingVariation.sections || []) {
+                        // Get the max order_index for existing sections
+                        const maxOrderResult = await client.query(
                             `SELECT COALESCE(MAX(order_index), -1) as max_order 
-                             FROM bullet_points 
-                             WHERE job_id = $1`,
-                            [jobResult.rows[0].id]
+                             FROM sections 
+                             WHERE user_id = $1`,
+                            [user.id]
                         );
-                        let nextBulletOrderIndex = maxBulletOrderResult.rows[0].max_order + 1;
+                        const nextOrderIndex = maxOrderResult.rows[0].max_order + 1;
 
-                        // Insert bullet points for this job
-                        const jobBullets = existingVariation.bulletPoints.filter(b => b.job_id === job.id);
-                        for (const bullet of jobBullets) {
-                            const bulletResult = await client.query(
-                                `INSERT INTO bullet_points (uuid, job_id, user_id, content, order_index)
-                                 VALUES ($1, $2, $3, $4, $5)
+                        // Create a new section
+                        const newSectionResult = await client.query(
+                            `INSERT INTO sections (uuid, user_id, name, order_index)
+                             VALUES ($1, $2, $3, $4)
+                             RETURNING id`,
+                            [uuidv4(), user.id, section.name, nextOrderIndex]
+                        );
+                        const newSectionId = newSectionResult.rows[0].id;
+
+                        // Get max order_index for jobs in this section
+                        const maxJobOrderResult = await client.query(
+                            `SELECT COALESCE(MAX(order_index), -1) as max_order 
+                             FROM jobs 
+                             WHERE section_id = $1`,
+                            [newSectionId]
+                        );
+                        let nextJobOrderIndex = maxJobOrderResult.rows[0].max_order + 1;
+
+                        // Insert jobs for this section
+                        const sectionJobs = existingVariation.jobs.filter(j => j.section_id === section.id);
+                        for (const job of sectionJobs) {
+                            const jobResult = await client.query(
+                                `INSERT INTO jobs (uuid, section_id, user_id, title, company, start_date, end_date, order_index)
+                                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
                                  RETURNING id`,
-                                [uuidv4(), jobResult.rows[0].id, user.id, bullet.content, nextBulletOrderIndex++]
+                                [uuidv4(), newSectionId, user.id, job.title, job.company,
+                                job.start_date, job.end_date, nextJobOrderIndex++]
                             );
 
-                            // Set visibility for the new variation based on the original bullet point's visibility
-                            const bulletVisibility = existingVariation.bulletPoints.find(
-                                bp => bp.bullet_point_id === bullet.id
+                            // Get max order_index for bullet points in this job
+                            const maxBulletOrderResult = await client.query(
+                                `SELECT COALESCE(MAX(order_index), -1) as max_order 
+                                 FROM bullet_points 
+                                 WHERE job_id = $1`,
+                                [jobResult.rows[0].id]
                             );
+                            let nextBulletOrderIndex = maxBulletOrderResult.rows[0].max_order + 1;
 
-                            await client.query(
-                                `INSERT INTO bullet_point_visibility (variation_id, bullet_point_id, user_id, is_visible)
-                                 VALUES ($1, $2, $3, $4)`,
-                                [variationId, bulletResult.rows[0].id, user.id, bulletVisibility?.is_visible ?? true]
-                            );
+                            // Insert bullet points for this job
+                            const jobBullets = existingVariation.bulletPoints.filter(b => b.job_id === job.id);
+                            for (const bullet of jobBullets) {
+                                const bulletResult = await client.query(
+                                    `INSERT INTO bullet_points (uuid, job_id, user_id, content, order_index)
+                                     VALUES ($1, $2, $3, $4, $5)
+                                     RETURNING id`,
+                                    [uuidv4(), jobResult.rows[0].id, user.id, bullet.content, nextBulletOrderIndex++]
+                                );
 
-                            // For all existing variations (excluding the new one), set visibility to false for the new bullet points
-                            if (existingVariationIds.length > 0) {
+                                // Set visibility for this variation
+                                const bulletVisibility = variation.bulletPoints.find(
+                                    bp => bp.bullet_point_id === bullet.id
+                                );
+
                                 await client.query(
                                     `INSERT INTO bullet_point_visibility (variation_id, bullet_point_id, user_id, is_visible)
-                                     SELECT v.id, $1, $2, false
-                                     FROM UNNEST($3::int[]) AS v(id)
-                                     WHERE v.id != $4`, /* Exclude the new variation */
-                                    [bulletResult.rows[0].id, user.id, existingVariationIds, variationId]
+                                     VALUES ($1, $2, $3, $4)`,
+                                    [variationId, bulletResult.rows[0].id, user.id, bulletVisibility?.is_visible ?? true]
                                 );
+
+                                // For all existing variations, set visibility to false for the new bullet points
+                                if (existingVariationIds.length > 0) {
+                                    await client.query(
+                                        `INSERT INTO bullet_point_visibility (variation_id, bullet_point_id, user_id, is_visible)
+                                         SELECT v.id, $1, $2, false
+                                         FROM UNNEST($3::int[]) AS v(id)
+                                         WHERE v.id != $4`,
+                                        [bulletResult.rows[0].id, user.id, existingVariationIds, variationId]
+                                    );
+                                }
                             }
                         }
                     }
@@ -255,12 +255,11 @@ app.post('/api/login', async (req, res) => {
                 await client.query('COMMIT');
             } catch (error) {
                 await client.query('ROLLBACK');
-                console.error('Error importing variation:', error);
-                // Return error to client instead of continuing
+                console.error('Error importing variations:', error);
                 return res.status(500).json({
-                    error: 'Failed to import resume variation',
+                    error: 'Failed to import resume variations',
                     details: error.message,
-                    userId: user.uuid // Still return userId so frontend can proceed if needed
+                    userId: user.uuid
                 });
             }
         }

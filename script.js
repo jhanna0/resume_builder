@@ -225,8 +225,6 @@ async function saveResume() {
     // Filter out empty jobs before saving
     const nonEmptyJobs = state.jobs.filter(job => !isJobEmpty(job));
 
-    console.log(state);
-
     // If jobs were filtered out, update the state
     if (nonEmptyJobs.length !== state.jobs.length) {
         state.jobs = nonEmptyJobs;
@@ -1366,31 +1364,32 @@ async function login() {
             password
         };
 
-        // Only include existingVariation if we have actual content
-        const currentVariation = state.variations[state.currentVariation];
-        if (currentVariation && hasContent({
-            full_name: state.full_name,
-            contact_info: state.contact_info,
-            sections: state.sections,
-            jobs: state.jobs,
-            bulletPoints: state.bulletPoints,
-            bio: currentVariation.bio,
-            theme: currentVariation.theme,
-            spacing: currentVariation.spacing
-        })) {
+        // Check if we have any content in any variation
+        const hasAnyContent = Object.values(state.variations).some(variation =>
+            hasContent({
+                full_name: state.full_name,
+                contact_info: state.contact_info,
+                sections: state.sections,
+                jobs: state.jobs,
+                bulletPoints: state.bulletPoints,
+                bio: variation.bio,
+                theme: variation.theme,
+                spacing: variation.spacing
+            })
+        );
+
+        // If we have content in any variation, include all state data
+        if (hasAnyContent) {
             loginData.existingVariation = {
                 full_name: state.full_name,
                 contact_info: state.contact_info,
                 sections: state.sections,
                 jobs: state.jobs,
                 bulletPoints: state.bulletPoints,
-                bio: currentVariation.bio,
-                theme: currentVariation.theme,
-                spacing: currentVariation.spacing
+                variations: state.variations
             };
 
             mustMerge = true;
-
         }
 
         const response = await fetch('/api/login', {
@@ -2069,6 +2068,12 @@ window.moveSection = moveSection;
 window.deleteSection = deleteSection;
 
 async function renameVariation() {
+
+    if (!state.isAuthenticated) {
+        alert('Please login to rename a variation');
+        return;
+    }
+
     if (!state.currentVariation) return;
 
     const variation = state.variations[state.currentVariation];
@@ -2110,6 +2115,11 @@ async function renameVariation() {
 }
 
 async function deleteVariation() {
+    if (!state.isAuthenticated) {
+        alert('Please login to delete a variation');
+        return;
+    }
+
     if (!state.currentVariation) return;
 
     // Don't allow deleting the last variation
