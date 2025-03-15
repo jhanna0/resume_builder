@@ -205,7 +205,19 @@ function addSection(sectionData = null) {
     if (!sectionData) {
         markUnsavedChanges();
         sectionDiv.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+        // Automatically add a job to the new section
+        const jobDiv = addJob({
+            section_id: sectionId,
+            title: state.placeholders?.jobTips?.title || '',
+            company: state.placeholders?.jobTips?.company || '',
+            start_date: '',
+            end_date: ''
+        }, false); // Don't skip state update
     }
+
+    // Ensure the resume preview is updated
+    updateResume();
 
     return section;
 }
@@ -317,13 +329,18 @@ function addJob(jobData = null, skipStateUpdate = false, targetSectionId = null)
         : -1;
 
     const jobId = jobData?.id || generateId();
+
+    // If this is a new job (no jobData) and we have placeholders, use them
+    const defaultTitle = !jobData && state.placeholders?.jobTips?.title || '';
+    const defaultCompany = !jobData && state.placeholders?.jobTips?.company || '';
+
     const job = {
         id: jobId,
         section_id: targetSectionId,
-        title: jobData?.title || '',
-        company: jobData?.company || '',
-        start_date: jobData?.start_date || null,
-        end_date: jobData?.end_date || null,
+        title: jobData?.title || defaultTitle,
+        company: jobData?.company || defaultCompany,
+        start_date: jobData?.start_date || '',
+        end_date: jobData?.end_date || '',
         order_index: jobData?.order_index ?? (maxOrderIndex + 1)
     };
 
@@ -398,6 +415,33 @@ function addJob(jobData = null, skipStateUpdate = false, targetSectionId = null)
         jobDiv.scrollIntoView({ behavior: 'smooth', block: 'center' });
         // Focus the title input
         titleInput.focus();
+    }
+
+    // Automatically add a bullet point if this is a new job
+    if (!skipStateUpdate) {
+        const bulletContainer = jobDiv.querySelector('.bulletPointsContainer');
+        const randomTip = state.placeholders?.bulletTips?.[Math.floor(Math.random() * state.placeholders.bulletTips.length)] || '';
+        const bulletData = {
+            content: randomTip,
+            job_id: jobId
+        };
+        const bulletDiv = addBulletPoint(bulletContainer, bulletData);
+
+        // Ensure the bullet point is visible in the current variation
+        if (state.currentVariation && state.variations[state.currentVariation]) {
+            const variation = state.variations[state.currentVariation];
+            const bulletId = bulletDiv.dataset.bulletId;
+            if (!variation.bulletPoints) {
+                variation.bulletPoints = [];
+            }
+            variation.bulletPoints.push({
+                bullet_point_id: bulletId,
+                is_visible: true
+            });
+        }
+
+        // Update the resume preview
+        updateResume();
     }
 
     return jobDiv;
@@ -1425,26 +1469,115 @@ async function login() {
 // Initialize default empty state
 function createDefaultState() {
     const defaultVariationId = generateId();
-    return {
+    const defaultSectionId = generateId();
+    const defaultJobId = generateId();
+
+    // Create bullet points with IDs first
+    const bulletPoints = [
+        {
+            id: generateId(),
+            job_id: defaultJobId,
+            content: "✨ Create different sections for your resume (e.g., Experience, Education) using the 'Add Section' button above",
+            order_index: 0
+        },
+        {
+            id: generateId(),
+            job_id: defaultJobId,
+            content: "📝 Add jobs/items to each section - they'll automatically come with a bullet point to get you started",
+            order_index: 1
+        },
+        {
+            id: generateId(),
+            job_id: defaultJobId,
+            content: "✅ Use checkboxes next to bullet points to show/hide them in different resume variations",
+            order_index: 2
+        },
+        {
+            id: generateId(),
+            job_id: defaultJobId,
+            content: "🎨 Try different themes and spacing options in the toolbar above to customize your resume's look",
+            order_index: 3
+        },
+        {
+            id: generateId(),
+            job_id: defaultJobId,
+            content: "💾 Create an account to save your resume and create multiple variations for different job applications",
+            order_index: 4
+        },
+        {
+            id: generateId(),
+            job_id: defaultJobId,
+            content: "⚡ Pro tip: Click on any item in the preview (right side) to jump to its edit location!",
+            order_index: 5
+        }
+    ];
+
+    // Create variation with bullet point visibility
+    const defaultVariation = {
+        id: defaultVariationId,
+        name: 'Default',
+        bio: 'TIP: Add a brief professional summary here that highlights your key strengths and career goals. Example: "Software engineer with 5+ years of experience in full-stack development, passionate about creating efficient and scalable solutions."',
+        theme: 'default',
+        spacing: 'normal',
+        bulletPoints: bulletPoints.map(bp => ({
+            bullet_point_id: bp.id,
+            is_visible: true  // Make all tutorial bullets visible by default
+        }))
+    };
+
+    const initialState = {
         full_name: '',
         contact_info: '',
-        sections: [],
-        jobs: [],
-        bulletPoints: [],
+        sections: [{
+            id: defaultSectionId,
+            name: "Getting Started",
+            order_index: 0
+        }],
+        jobs: [{
+            id: defaultJobId,
+            section_id: defaultSectionId,
+            title: "Welcome to Your Resume Builder! 👋",
+            company: "Here's how to use this tool",
+            start_date: "",
+            end_date: "",
+            order_index: 0
+        }],
+        bulletPoints: bulletPoints,
         variations: {
-            [defaultVariationId]: {
-                id: defaultVariationId,
-                name: 'Default',
-                bio: '',
-                theme: 'default',
-                spacing: 'normal',
-                bulletPoints: []
-            }
+            [defaultVariationId]: defaultVariation
         },
         currentVariation: defaultVariationId,
         isDirty: false,
-        hasUnsavedChanges: false
+        hasUnsavedChanges: false,
+        placeholders: {
+            name: "Your full name",
+            contact: "Email | Phone | LinkedIn | Location",
+            sectionNames: [
+                "Experience",
+                "Education",
+                "Projects",
+                "Skills",
+                "Publications",
+                "Awards"
+            ],
+            jobTips: {
+                title: "Position or Role",
+                company: "Company or Organization Name",
+                startDate: "Start date (e.g., January 2020)",
+                endDate: "End date (or 'Present')"
+            },
+            bulletTips: [
+                "Start with strong action verbs (e.g., Led, Developed, Implemented)",
+                "Include measurable achievements (e.g., Increased efficiency by 50%)",
+                "Be specific and concise (aim for 1-2 lines per bullet)",
+                "Focus on impact and results rather than just responsibilities",
+                "Highlight relevant skills and technologies used",
+                "Quantify your achievements when possible"
+            ]
+        }
     };
+
+    return initialState;
 }
 
 // Update loadResume function to handle variations properly
