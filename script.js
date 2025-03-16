@@ -183,6 +183,9 @@ function addSection(sectionData = null) {
         }, false); // Don't skip state update
     }
 
+    // Update all button states
+    updateAllButtonStates();
+
     // Ensure the resume preview is updated
     updateResume();
 
@@ -411,6 +414,9 @@ function addJob(jobData = null, skipStateUpdate = false, targetSectionId = null)
         updateResume();
     }
 
+    // Update all button states
+    updateAllButtonStates();
+
     return jobDiv;
 }
 
@@ -528,6 +534,9 @@ function addBulletPoint(containerOrButton, bulletData = null, skipStateUpdate = 
         textArea.focus();
     }
 
+    // Update all button states
+    updateAllButtonStates();
+
     return bulletDiv;
 }
 
@@ -607,6 +616,83 @@ function addBulletTag(bulletId) {
         updateBulletTags(bulletDiv);
         updateResume();
     }
+}
+
+// Add this new function before the move functions
+function updateAllButtonStates() {
+    // Update section button states
+    const sections = document.querySelectorAll('.section');
+    sections.forEach((section, sectionIndex) => {
+        const moveButtons = section.querySelectorAll('.move-buttons button');
+        moveButtons[0].disabled = sectionIndex === 0; // Up button
+        moveButtons[1].disabled = sectionIndex === sections.length - 1; // Down button
+    });
+
+    // Update job button states
+    sections.forEach(section => {
+        const jobs = section.querySelectorAll('.job');
+        jobs.forEach((job, jobIndex) => {
+            const moveButtons = job.querySelectorAll('.move-buttons button');
+            moveButtons[0].disabled = jobIndex === 0; // Up button
+            moveButtons[1].disabled = jobIndex === jobs.length - 1; // Down button
+        });
+    });
+
+    // Update bullet point button states
+    const jobs = document.querySelectorAll('.job');
+    jobs.forEach(job => {
+        const bullets = job.querySelectorAll('.bullet-point');
+        bullets.forEach((bullet, bulletIndex) => {
+            const moveButtons = bullet.querySelectorAll('.button-group button:nth-child(1), .button-group button:nth-child(2)');
+            moveButtons[0].disabled = bulletIndex === 0; // Up button
+            moveButtons[1].disabled = bulletIndex === bullets.length - 1; // Down button
+        });
+    });
+}
+
+function moveSection(button, direction) {
+    const sectionDiv = button.closest('.section');
+    const sectionId = sectionDiv.dataset.sectionId;
+    const sectionsContainer = document.getElementById('sectionsContainer');
+
+    // Find section in state
+    const sections = state.sections;
+    const currentIndex = sections.findIndex(s => s.id === sectionId);
+
+    if (direction === 'up' && currentIndex > 0) {
+        // Swap order_index with previous section
+        const temp = sections[currentIndex].order_index;
+        sections[currentIndex].order_index = sections[currentIndex - 1].order_index;
+        sections[currentIndex - 1].order_index = temp;
+
+        // Move DOM element
+        const prevSection = sectionsContainer.querySelector(`[data-section-id="${sections[currentIndex - 1].id}"]`);
+        if (prevSection) {
+            sectionsContainer.insertBefore(sectionDiv, prevSection);
+        }
+    } else if (direction === 'down' && currentIndex < sections.length - 1) {
+        // Swap order_index with next section
+        const temp = sections[currentIndex].order_index;
+        sections[currentIndex].order_index = sections[currentIndex + 1].order_index;
+        sections[currentIndex + 1].order_index = temp;
+
+        // Move DOM element
+        const nextSection = sectionsContainer.querySelector(`[data-section-id="${sections[currentIndex + 1].id}"]`);
+        if (nextSection && nextSection.nextSibling) {
+            sectionsContainer.insertBefore(sectionDiv, nextSection.nextSibling);
+        } else if (nextSection) {
+            sectionsContainer.appendChild(sectionDiv);
+        }
+    }
+
+    // Normalize indices to ensure they're continuous
+    normalizeOrderIndices(sections);
+
+    // Update all button states
+    updateAllButtonStates();
+
+    // Update resume preview only
+    updateResume();
 }
 
 function moveJob(button, direction) {
@@ -699,6 +785,9 @@ function moveJob(button, direction) {
             normalizeOrderIndices(sectionJobs);
         });
 
+    // Update all button states
+    updateAllButtonStates();
+
     // Update resume preview only
     updateResume();
 }
@@ -747,6 +836,9 @@ function moveBullet(button, direction) {
     // Normalize indices for all bullets in this job
     const allJobBullets = state.bulletPoints.filter(b => b.job_id === jobId);
     normalizeOrderIndices(allJobBullets);
+
+    // Update all button states
+    updateAllButtonStates();
 
     // Update resume preview only
     updateResume();
@@ -806,6 +898,9 @@ function duplicateBullet(button) {
     bulletDiv.querySelector('input[type="checkbox"]').checked = false;
     newBulletDiv.querySelector('input[type="checkbox"]').checked = true;
 
+    // Update all button states
+    updateAllButtonStates();
+
     // Update resume
     updateResume();
 }
@@ -835,6 +930,10 @@ function deleteBullet(button) {
 
     // Remove from UI
     bulletDiv.remove();
+
+    // Update all button states
+    updateAllButtonStates();
+
     updateResume();
 }
 
@@ -1646,7 +1745,7 @@ function updateUI() {
     // Load sections
     state.sections
         .sort((a, b) => a.order_index - b.order_index)
-        .forEach(section => {
+        .forEach((section, sectionIndex) => {
             // Create section UI
             const sectionDiv = document.createElement('div');
             sectionDiv.className = 'section';
@@ -1677,15 +1776,25 @@ function updateUI() {
             // Add to container
             document.getElementById('sectionsContainer').appendChild(sectionDiv);
 
+            // Set initial button states for section
+            const moveButtons = sectionDiv.querySelectorAll('.move-buttons button');
+            moveButtons[0].disabled = sectionIndex === 0; // Up button
+            moveButtons[1].disabled = sectionIndex === state.sections.length - 1; // Down button
+
             // Load jobs for this section
             const sectionJobs = state.jobs
                 .filter(job => job.section_id === section.id)
                 .sort((a, b) => a.order_index - b.order_index);
 
             const jobsContainer = sectionDiv.querySelector('.section-jobs');
-            sectionJobs.forEach(job => {
+            sectionJobs.forEach((job, jobIndex) => {
                 const jobDiv = addJob(job, true); // Skip state update since job is already in state
                 jobsContainer.appendChild(jobDiv);
+
+                // Set initial button states for job
+                const jobMoveButtons = jobDiv.querySelectorAll('.move-buttons button');
+                jobMoveButtons[0].disabled = jobIndex === 0 && sectionIndex === 0; // Up button
+                jobMoveButtons[1].disabled = jobIndex === sectionJobs.length - 1 && sectionIndex === state.sections.length - 1; // Down button
 
                 // Add bullet points for this job
                 const bulletContainer = jobDiv.querySelector('.bulletPointsContainer');
@@ -1693,15 +1802,16 @@ function updateUI() {
                     .filter(bp => bp.job_id === job.id)
                     .sort((a, b) => a.order_index - b.order_index);
 
-                jobBullets.forEach(bullet => {
-                    addBulletPoint(bulletContainer, bullet, true); // Skip state update since bullet is already in state
+                jobBullets.forEach((bullet, bulletIndex) => {
+                    const bulletDiv = addBulletPoint(bulletContainer, bullet, true); // Skip state update since bullet is already in state
+
+                    // Set initial button states for bullet
+                    const bulletMoveButtons = bulletDiv.querySelectorAll('.button-group button:nth-child(1), .button-group button:nth-child(2)');
+                    bulletMoveButtons[0].disabled = bulletIndex === 0; // Up button
+                    bulletMoveButtons[1].disabled = bulletIndex === jobBullets.length - 1; // Down button
                 });
             });
         });
-
-    // Show/hide Add Job button based on sections existence
-    // const addJobBtn = document.getElementById('addJobBtn');
-    // addJobBtn.classList.toggle('visible', state.currentResume.sections.length > 0);
 
     // Load current variation
     if (state.currentVariation) {
@@ -1747,6 +1857,10 @@ function deleteJob(button) {
 
     // Remove from UI
     jobDiv.remove();
+
+    // Update all button states
+    updateAllButtonStates();
+
     updateResume();
 }
 
@@ -1773,6 +1887,10 @@ function deleteBulletPoint(button) {
 
     // Remove from UI
     bulletDiv.remove();
+
+    // Update all button states
+    updateAllButtonStates();
+
     updateResume();
 }
 
@@ -2097,48 +2215,6 @@ window.loadResume = function () {
 };
 
 // Add new section-related functions
-function moveSection(button, direction) {
-    const sectionDiv = button.closest('.section');
-    const sectionId = sectionDiv.dataset.sectionId;
-    const sectionsContainer = document.getElementById('sectionsContainer');
-
-    // Find section in state
-    const sections = state.sections;
-    const currentIndex = sections.findIndex(s => s.id === sectionId);
-
-    if (direction === 'up' && currentIndex > 0) {
-        // Swap order_index with previous section
-        const temp = sections[currentIndex].order_index;
-        sections[currentIndex].order_index = sections[currentIndex - 1].order_index;
-        sections[currentIndex - 1].order_index = temp;
-
-        // Move DOM element
-        const prevSection = sectionsContainer.querySelector(`[data-section-id="${sections[currentIndex - 1].id}"]`);
-        if (prevSection) {
-            sectionsContainer.insertBefore(sectionDiv, prevSection);
-        }
-    } else if (direction === 'down' && currentIndex < sections.length - 1) {
-        // Swap order_index with next section
-        const temp = sections[currentIndex].order_index;
-        sections[currentIndex].order_index = sections[currentIndex + 1].order_index;
-        sections[currentIndex + 1].order_index = temp;
-
-        // Move DOM element
-        const nextSection = sectionsContainer.querySelector(`[data-section-id="${sections[currentIndex + 1].id}"]`);
-        if (nextSection && nextSection.nextSibling) {
-            sectionsContainer.insertBefore(sectionDiv, nextSection.nextSibling);
-        } else if (nextSection) {
-            sectionsContainer.appendChild(sectionDiv);
-        }
-    }
-
-    // Normalize indices to ensure they're continuous
-    normalizeOrderIndices(sections);
-
-    // Update resume preview only
-    updateResume();
-}
-
 function deleteSection(button) {
     const sectionDiv = button.closest('.section');
     const sectionId = sectionDiv.dataset.sectionId;
@@ -2181,6 +2257,10 @@ function deleteSection(button) {
 
     // Remove from UI
     sectionDiv.remove();
+
+    // Update all button states
+    updateAllButtonStates();
+
     updateResume();
 }
 

@@ -324,9 +324,17 @@ textarea {
     transition: all 0.2s ease;
 }
 
-.bullet-controls button:hover {
+.bullet-controls button:not(:disabled):hover {
     background: var(--neutral-200);
     color: var(--neutral-700);
+}
+
+.bullet-controls button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    background: var(--neutral-50);
+    color: var(--neutral-400);
+    border-color: var(--neutral-200);
 }
 
 .bullet-controls button:last-child {
@@ -357,11 +365,21 @@ textarea {
     color: var(--neutral-600);
     border: 1px solid var(--neutral-200);
     border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s ease;
 }
 
-.move-buttons button:hover {
+.move-buttons button:not(:disabled):hover {
     background: var(--neutral-200);
     color: var(--neutral-700);
+}
+
+.move-buttons button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    background: var(--neutral-50);
+    color: var(--neutral-400);
+    border-color: var(--neutral-200);
 }
 
 /* Delete Job Button */
