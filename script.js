@@ -172,6 +172,9 @@ function addSection(sectionData = null) {
     if (!sectionData) {
         markUnsavedChanges();
         sectionDiv.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        // Focus the section name input
+        nameInput.focus();
+        nameInput.setSelectionRange(0, 0);
 
         // Automatically add a job to the new section
         const jobDiv = addJob({
@@ -693,6 +696,11 @@ function moveSection(button, direction) {
 
     // Update resume preview only
     updateResume();
+
+    // Focus the section name input
+    const nameInput = sectionDiv.querySelector('.section-name');
+    nameInput.focus();
+    nameInput.setSelectionRange(0, 0);
 }
 
 function moveJob(button, direction) {
@@ -790,6 +798,11 @@ function moveJob(button, direction) {
 
     // Update resume preview only
     updateResume();
+
+    // Focus the job title input
+    const titleInput = jobDiv.querySelector('.job-title');
+    titleInput.focus();
+    titleInput.setSelectionRange(0, 0);
 }
 
 function moveBullet(button, direction) {
@@ -842,6 +855,11 @@ function moveBullet(button, direction) {
 
     // Update resume preview only
     updateResume();
+
+    // Focus the bullet point input
+    const bulletInput = bulletDiv.querySelector('textarea');
+    bulletInput.focus();
+    bulletInput.setSelectionRange(0, 0);
 }
 
 function duplicateBullet(button) {
@@ -903,6 +921,11 @@ function duplicateBullet(button) {
 
     // Update resume
     updateResume();
+
+    // Focus the new bullet point's textarea
+    const newBulletTextarea = newBulletDiv.querySelector('textarea');
+    newBulletTextarea.focus();
+    newBulletTextarea.setSelectionRange(0, 0);
 }
 
 function deleteBullet(button) {
