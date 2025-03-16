@@ -1810,10 +1810,10 @@ async function exportToPDF() {
     const element = document.getElementById('resumeContent');
     const currentTheme = document.getElementById('themeSelect').value;
 
-    if (!state.isAuthenticated) {
-        showAuthModal();
-        return; // Don't proceed with save - the login process will handle merging the data
-    }
+    // if (!state.isAuthenticated) {
+    //     showAuthModal();
+    //     return; // Don't proceed with save - the login process will handle merging the data
+    // }
 
     // Check if resume has content before proceeding
     const currentVariation = state.variations[state.currentVariation];
@@ -1897,6 +1897,8 @@ async function exportToPDF() {
                         width: 100% !important;
                         padding: 0 !important;
                         min-height: 0 !important;
+                        border: none !important;
+                        border-radius: 0 !important;
                     }
 
                     /* Ensure theme and spacing variables are preserved */

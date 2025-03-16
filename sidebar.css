@@ -8,6 +8,7 @@
     border-right: 1px solid var(--neutral-200);
     scroll-behavior: smooth;
     position: relative;
+    z-index: 100;
 }
 
 /* Move scrollbar away from edge */
