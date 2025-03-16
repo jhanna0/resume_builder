@@ -1631,32 +1631,38 @@ function createDefaultState() {
         {
             id: generateId(),
             job_id: defaultJobId,
-            content: "💡 Click the + button in the toolbar to create a new variation (e.g., 'Software Focus')",
+            content: "✨ Never lose experience again! Keep all your achievements and use variations to tell different stories",
             order_index: 0
         },
         {
             id: generateId(),
             job_id: defaultJobId,
-            content: "✨ Don't forget to save your work! Click 'Save Resume' in the toolbar to keep your changes",
+            content: "🎯 Create variations like 'Software Focus' or 'Management Focus' to tailor your resume for different roles",
             order_index: 1
         },
         {
             id: generateId(),
             job_id: defaultJobId,
-            content: "🎨 Try different themes above to find the perfect look for each job application",
+            content: "💡 Pro tip: When you want to shorten an older bullet point, use the copy button (⎘) to create a shorter version instead of deleting it. This preserves your original experience!",
             order_index: 2
         },
         {
             id: generateId(),
             job_id: defaultJobId,
-            content: "📌 Click any item in the resume preview to jump to where you can edit it",
+            content: "📝 Customize your bio for each variation to highlight different aspects of your experience, or show what you're looking for",
             order_index: 3
         },
         {
             id: generateId(),
             job_id: defaultJobId,
-            content: "⚡ Never lose your experience again! Use the copy button (⎘) on bullet points to create shorter versions instead of deleting them",
+            content: "💡 Sections and jobs are only visible if they have at least one visible bullet point",
             order_index: 4
+        },
+        {
+            id: generateId(),
+            job_id: defaultJobId,
+            content: "👆 Click any job title or bullet point to jump to it in the editor",
+            order_index: 5
         }
     ];
 
@@ -1664,7 +1670,7 @@ function createDefaultState() {
     const defaultVariation = {
         id: defaultVariationId,
         name: 'Default',
-        bio: 'Create multiple versions of your resume without losing any experience. Perfect for tailoring to different jobs or industries.',
+        bio: 'Create multiple versions of your resume without losing any experience. Perfect for tailoring your background to different roles.',
         theme: 'default',
         spacing: 'relaxed',
         bulletPoints: bulletPoints.map(bp => ({
