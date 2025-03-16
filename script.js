@@ -1462,6 +1462,25 @@ async function signup() {
     const password = document.getElementById('signupPassword').value;
     const errorElement = document.getElementById('signupError');
 
+    // Validate fields
+    if (!email || !password) {
+        errorElement.textContent = 'Please fill in all fields';
+        return;
+    }
+
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+        errorElement.textContent = 'Please enter a valid email address';
+        return;
+    }
+
+    // Validate password length
+    if (password.length < 6) {
+        errorElement.textContent = 'Password must be at least 6 characters long';
+        return;
+    }
+
     try {
         const response = await fetch('/api/register', {
             method: 'POST',
@@ -1482,24 +1501,37 @@ async function signup() {
         updateAuthUI();
 
         // After successful signup, proceed with login to handle resume merging
-        await login();
+        await login(email, password);
     } catch (error) {
         errorElement.textContent = error.message;
     }
 }
 
-async function login() {
-    const email = document.getElementById('loginEmail').value;
-    const password = document.getElementById('loginPassword').value;
+async function login(email = null, password = null) {
+    const emailValue = email || document.getElementById('loginEmail').value;
+    const passwordValue = password || document.getElementById('loginPassword').value;
     const errorElement = document.getElementById('loginError');
+
+    // Validate fields
+    if (!emailValue || !passwordValue) {
+        errorElement.textContent = 'Please fill in all fields';
+        return;
+    }
+
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(emailValue)) {
+        errorElement.textContent = 'Please enter a valid email address';
+        return;
+    }
 
     var mustMerge = false;
 
     try {
         // Create the login data object
         const loginData = {
-            email,
-            password
+            email: emailValue,
+            password: passwordValue
         };
 
         // Check if current state is default state
