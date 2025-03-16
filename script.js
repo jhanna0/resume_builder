@@ -1157,6 +1157,7 @@ function updateResume() {
             if (visibleBullets.length > 0) {
                 sectionHasVisibleContent = true;
                 sectionHTML += `<div class='resume-job' id="preview-job-${job.id}">`;
+                sectionHTML += `<div class="resume-job-header">`;
                 sectionHTML += `<h3 style="cursor: pointer">${linkifyText(job.title)}</h3>`;
                 if (job.company) {
                     sectionHTML += `<h4>${linkifyText(job.company)}</h4>`;
@@ -1168,6 +1169,7 @@ function updateResume() {
                     if (job.end_date) sectionHTML += job.end_date;
                     sectionHTML += `</p>`;
                 }
+                sectionHTML += `</div>`;
                 sectionHTML += `<ul class="resume-bullet-points">`;
                 visibleBullets.forEach(bullet => {
                     sectionHTML += `<li id="preview-bullet-${bullet.id}" style="cursor: pointer">${linkifyText(bullet.content)}</li>`;
