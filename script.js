@@ -1378,32 +1378,47 @@ async function login() {
             password
         };
 
-        // Check if we have any content in any variation
-        const hasAnyContent = Object.values(state.variations).some(variation =>
-            hasContent({
-                full_name: state.full_name,
-                contact_info: state.contact_info,
-                sections: state.sections,
-                jobs: state.jobs,
-                bulletPoints: state.bulletPoints,
-                bio: variation.bio,
-                theme: variation.theme,
-                spacing: variation.spacing
-            })
-        );
+        // Check if current state is default state
+        const defaultState = createDefaultState();
+        const isDefaultState =
+            state.full_name === defaultState.full_name &&
+            state.contact_info === defaultState.contact_info &&
+            state.sections.length === defaultState.sections.length &&
+            state.sections[0]?.name === defaultState.sections[0]?.name &&
+            state.jobs.length === defaultState.jobs.length &&
+            state.jobs[0]?.title === defaultState.jobs[0]?.title &&
+            state.jobs[0]?.company === defaultState.jobs[0]?.company &&
+            state.bulletPoints.length === defaultState.bulletPoints.length &&
+            Object.keys(state.variations).length === 1 &&
+            state.variations[Object.keys(state.variations)[0]]?.name === 'Default';
 
-        // If we have content in any variation, include all state data
-        if (hasAnyContent) {
-            loginData.existingVariation = {
-                full_name: state.full_name,
-                contact_info: state.contact_info,
-                sections: state.sections,
-                jobs: state.jobs,
-                bulletPoints: state.bulletPoints,
-                variations: state.variations
-            };
+        // Only include existing variation if we have content and it's not the default state
+        if (!isDefaultState) {
+            const hasAnyContent = Object.values(state.variations).some(variation =>
+                hasContent({
+                    full_name: state.full_name,
+                    contact_info: state.contact_info,
+                    sections: state.sections,
+                    jobs: state.jobs,
+                    bulletPoints: state.bulletPoints,
+                    bio: variation.bio,
+                    theme: variation.theme,
+                    spacing: variation.spacing
+                })
+            );
 
-            mustMerge = true;
+            if (hasAnyContent) {
+                loginData.existingVariation = {
+                    full_name: state.full_name,
+                    contact_info: state.contact_info,
+                    sections: state.sections,
+                    jobs: state.jobs,
+                    bulletPoints: state.bulletPoints,
+                    variations: state.variations
+                };
+
+                mustMerge = true;
+            }
         }
 
         const response = await fetch('/api/login', {
@@ -1435,6 +1450,11 @@ async function login() {
         errorElement.textContent = error.message;
     }
 }
+
+// Add form submission handlers
+document.addEventListener('DOMContentLoaded', function () {
+    // Remove the form submission handlers since we're handling it with onsubmit in the HTML
+});
 
 // Initialize default empty state
 function createDefaultState() {
@@ -2308,6 +2328,13 @@ function hasContent(variation) {
 
 // Function to handle sign out
 function signOut() {
+    // Check for unsaved changes
+    if (hasUnsavedChanges) {
+        if (!confirm('You have unsaved changes. Are you sure you want to sign out? Your changes will be lost.')) {
+            return;
+        }
+    }
+
     // Clear state
     state.userId = null;
     state.isAuthenticated = false;
