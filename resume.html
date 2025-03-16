@@ -1,38 +1,11 @@
 <div class="resume-container">
     <div class="resume-toolbar">
         <div class="resume-toolbar-left">
-            <h2>Resume</h2>
-            <span class="variant-name"></span>
-        </div>
-        <div class="resume-toolbar-right">
             <div class="auth-controls">
                 <button id="authButton" onclick="showAuthModal()" class="auth-btn">Sign In</button>
                 <button id="signOutButton" onclick="signOut()" class="auth-btn" style="display: none;">Sign Out</button>
             </div>
-            <!-- <button onclick="fillSampleData()" class="fill-sample-btn">Fill Sample Data</button> -->
-            <div class="spacing-controls">
-                <!-- <label>Spacing:</label> -->
-                <div class="spacing-selector">
-                    <select id="spacingSelect" onchange="changeSpacing()">
-                        <option value="relaxed">Relaxed</option>
-                        <option value="normal">Normal</option>
-                        <option value="tight">Tight</option>
-                    </select>
-                </div>
-            </div>
-            <div class="theme-controls">
-                <!-- <label>Theme:</label> -->
-                <div class="theme-selector">
-                    <select id="themeSelect" onchange="changeTheme()">
-                        <option value="default">Ocean Blue</option>
-                        <option value="classic">Classic B&W</option>
-                        <option value="pink">Modern Pink</option>
-                        <option value="forest">Forest Green</option>
-                    </select>
-                </div>
-            </div>
             <div class="variation-controls">
-                <!-- <label>Variation:</label> -->
                 <div class="variation-selector">
                     <select id="variationSelect" onchange="loadVariation(this.value)">
                         <option value="default">Original</option>
@@ -42,11 +15,38 @@
                     <button id="deleteVariationBtn" onclick="deleteVariation()" title="Delete Variation">×</button>
                 </div>
             </div>
-            <button onclick="saveResume()" class="primary">Save Resume</button>
-            <button onclick="exportToPDF()" class="primary">Export PDF</button>
+            <!-- <span class="variant-name"></span> -->
+        </div>
+        <div class="resume-toolbar-right">
+            <div class="formatting-controls">
+                <div class="theme-controls">
+                    <div class="theme-selector">
+                        <select id="themeSelect" onchange="changeTheme()">
+                            <option value="default">Ocean Blue</option>
+                            <option value="classic">Classic B&W</option>
+                            <option value="pink">Modern Pink</option>
+                            <option value="forest">Forest Green</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="spacing-controls">
+                    <div class="spacing-selector">
+                        <select id="spacingSelect" onchange="changeSpacing()">
+                            <option value="relaxed">Relaxed</option>
+                            <option value="normal">Normal</option>
+                            <option value="tight">Tight</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+            <div class="action-controls">
+                <button onclick="saveResume()" class="primary">Save Resume</button>
+                <button onclick="exportToPDF()" class="primary">Make PDF</button>
+            </div>
         </div>
     </div>
     <div id="resume">
         <div id="resumeContent"></div>
     </div>
+</div>
 </div>

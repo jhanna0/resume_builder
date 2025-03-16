@@ -882,7 +882,7 @@ function loadVariation(variationId) {
     const variation = state.variations[variationId];
 
     // Update variant name in toolbar
-    document.querySelector('.variant-name').textContent = variation.name;
+    // document.querySelector('.variant-name').textContent = variation.name;
 
     // Update theme and spacing
     const themeSelect = document.getElementById('themeSelect');
@@ -1477,38 +1477,26 @@ function createDefaultState() {
         {
             id: generateId(),
             job_id: defaultJobId,
-            content: "✨ Create different sections for your resume (e.g., Experience, Education) using the 'Add Section' button above",
+            content: "✨ Create different variations of your resume by showing/hiding bullet points - perfect for tailoring to different jobs",
             order_index: 0
         },
         {
             id: generateId(),
             job_id: defaultJobId,
-            content: "📝 Add jobs/items to each section - they'll automatically come with a bullet point to get you started",
+            content: "⚡ Pro Tip: When shortening a bullet point, use the copy button (⎘) to create a shorter version instead of deleting the original",
             order_index: 1
         },
         {
             id: generateId(),
             job_id: defaultJobId,
-            content: "✅ Use checkboxes next to bullet points to show/hide them in different resume variations",
+            content: "🎨 Each resume variation can have its own bio and styling - click the theme selector above to try different looks",
             order_index: 2
         },
         {
             id: generateId(),
             job_id: defaultJobId,
-            content: "🎨 Try different themes and spacing options in the toolbar above to customize your resume's look",
+            content: "📌 Pro Tip: Click any item in the preview (right side) to jump to where you can edit it",
             order_index: 3
-        },
-        {
-            id: generateId(),
-            job_id: defaultJobId,
-            content: "💾 Create an account to save your resume and create multiple variations for different job applications",
-            order_index: 4
-        },
-        {
-            id: generateId(),
-            job_id: defaultJobId,
-            content: "⚡ Pro tip: Click on any item in the preview (right side) to jump to its edit location!",
-            order_index: 5
         }
     ];
 
@@ -1516,7 +1504,7 @@ function createDefaultState() {
     const defaultVariation = {
         id: defaultVariationId,
         name: 'Default',
-        bio: 'TIP: Add a brief professional summary here that highlights your key strengths and career goals. Example: "Software engineer with 5+ years of experience in full-stack development, passionate about creating efficient and scalable solutions."',
+        bio: 'You can have a different bio for each variation of your resume',
         theme: 'default',
         spacing: 'normal',
         bulletPoints: bulletPoints.map(bp => ({
@@ -1526,8 +1514,8 @@ function createDefaultState() {
     };
 
     const initialState = {
-        full_name: '',
-        contact_info: '',
+        full_name: 'Your Name',
+        contact_info: 'your@email.com | 123-456-7890 | Website | Your Location',
         sections: [{
             id: defaultSectionId,
             name: "Getting Started",
@@ -2238,7 +2226,7 @@ async function renameVariation() {
         }
 
         // Update toolbar display
-        document.querySelector('.variant-name').textContent = newName;
+        // document.querySelector('.variant-name').textContent = newName;
 
         markUnsavedChanges();
     } catch (error) {

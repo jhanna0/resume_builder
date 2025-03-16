@@ -16,45 +16,27 @@
     align-items: center;
     justify-content: space-between;
     padding: var(--space-3) var(--space-6);
-    background: var(--secondary);
+    background: var(--neutral-50);
     position: sticky;
     top: 0;
     z-index: 10;
     flex-shrink: 0;
     height: 60px;
-    color: white;
-    box-shadow: 0 4px 12px rgba(43, 108, 176, 0.2);
+    color: var(--neutral-800);
     border-bottom: 1px solid var(--neutral-200);
     margin-bottom: var(--space-6);
-}
-
-/* All toolbar buttons */
-.resume-toolbar button,
-.variation-selector button,
-.resume-toolbar-right button {
-    display: flex;
-    align-items: center;
-    margin: 0;
 }
 
 .resume-toolbar-left {
     display: flex;
     align-items: center;
-    gap: var(--space-3);
-}
-
-.resume-toolbar h2 {
-    margin: 0;
-    font-size: 1.125rem;
-    color: white;
-    font-weight: 600;
-    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+    gap: var(--space-4);
 }
 
 .resume-toolbar-right {
     display: flex;
     align-items: center;
-    gap: var(--space-4);
+    gap: var(--space-6);
 }
 
 .variation-controls {
@@ -65,7 +47,7 @@
 }
 
 .variation-controls label {
-    color: white;
+    color: var(--neutral-800);
     font-size: 0.9rem;
     font-weight: 500;
     margin: 0;
@@ -80,17 +62,15 @@
 .variation-selector select {
     min-width: 200px;
     padding: var(--space-2) var(--space-3);
-    border: 1px solid rgba(255, 255, 255, 0.3);
+    border: 1px solid var(--neutral-300);
     border-radius: 6px;
     font-size: 14px;
     color: var(--neutral-800);
-    background: rgba(255, 255, 255, 0.95);
+    background: var(--neutral-50);
 }
 
 .variation-selector select:focus {
-    border-color: white;
     outline: none;
-    box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.2);
 }
 
 .variation-selector button {
@@ -100,24 +80,24 @@
     width: 28px;
     height: 28px;
     padding: 0;
-    border: 1px solid rgba(255, 255, 255, 0.3);
+    border: 1px solid var(--neutral-300);
     border-radius: 6px;
-    background: rgba(255, 255, 255, 0.95);
-    /* color: var(--neutral-600); */
+    background: var(--neutral-50);
+    color: var(--neutral-600);
     font-size: 16px;
     cursor: pointer;
     transition: all 0.2s ease;
 }
 
 .variation-selector button:hover {
-    background: var(--neutral-200);
-    color: var(--neutral-700);
+    background: var(--neutral-100);
+    color: var(--neutral-800);
 }
 
 #deleteVariationBtn:hover {
     background: var(--danger-light);
     color: var(--danger);
-    border-color: var(--danger);
+    border-color: var(--danger-light);
 }
 
 #renameVariationBtn {
@@ -125,11 +105,44 @@
 }
 
 .variant-name {
-    color: var(--neutral-100);
+    color: var(--neutral-600);
     font-size: 0.9rem;
     font-weight: 500;
     padding-left: var(--space-3);
-    border-left: 2px solid rgba(255, 255, 255, 0.3);
+    border-left: 2px solid var(--neutral-300);
+}
+
+.resume-toolbar button {
+    background: var(--primary);
+    color: white;
+    border: none;
+    padding: var(--space-2) var(--space-3);
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+    transition: all 0.2s;
+}
+
+.resume-toolbar button:hover {
+    background: var(--primary-hover);
+    color: white;
+}
+
+.resume-toolbar button:focus {
+    outline: none;
+}
+
+.auth-btn {
+    background: var(--neutral-50);
+    color: var(--primary);
+    border: 1px solid var(--neutral-300);
+}
+
+.auth-btn:hover {
+    background: var(--neutral-100);
+    color: var(--primary-hover);
+    border-color: var(--neutral-400);
 }
 
 /* Resume paper view */
@@ -147,11 +160,12 @@
     min-height: 297mm;
     margin: 0 auto;
     padding: var(--resume-content-padding);
-    box-shadow: 0 4px 20px rgba(255, 176, 0, 0.15);
+    box-shadow: var(--shadow-lg);
     font-family: var(--font-serif);
     color: var(--theme-text);
     border-radius: 8px;
     box-sizing: border-box;
+    border: 1px solid var(--neutral-200);
 }
 
 /* Resume header (Name, contact, bio) */
@@ -264,19 +278,6 @@
     margin: 20px auto 0;
     width: auto;
 }
-
-.resume-toolbar button {
-    background: rgba(80, 100, 120, 0.3);
-    border: 1px solid rgba(200, 220, 240, 0.5);
-    color: #ffffff;
-}
-
-.resume-toolbar button:hover {
-    background: rgba(110, 130, 150, 0.4);
-    border-color: rgba(220, 240, 255, 0.6);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-}
-
 
 .unsaved-indicator {
     position: fixed;
@@ -523,17 +524,15 @@
 .theme-selector select {
     min-width: 200px;
     padding: var(--space-2) var(--space-3);
-    border: 1px solid rgba(255, 255, 255, 0.3);
+    border: 1px solid var(--neutral-300);
     border-radius: 6px;
     font-size: 14px;
     color: var(--neutral-800);
-    background: rgba(255, 255, 255, 0.95);
+    background: var(--neutral-50);
 }
 
 .theme-selector select:focus {
-    border-color: white;
     outline: none;
-    box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.2);
 }
 
 .resume-header h1 {
@@ -583,19 +582,17 @@
 }
 
 .spacing-selector select {
-    min-width: 120px;
+    min-width: 200px;
     padding: var(--space-2) var(--space-3);
-    border: 1px solid rgba(255, 255, 255, 0.3);
+    border: 1px solid var(--neutral-300);
     border-radius: 6px;
     font-size: 14px;
     color: var(--neutral-800);
-    background: rgba(255, 255, 255, 0.95);
+    background: var(--neutral-50);
 }
 
 .spacing-selector select:focus {
-    border-color: white;
     outline: none;
-    box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.2);
 }
 
 /* Add link styles */
@@ -625,20 +622,19 @@
     print-color-adjust: exact;
 }
 
+.formatting-controls {
+    display: flex;
+    align-items: center;
+    gap: var(--space-4);
+}
+
+.action-controls {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+}
+
 .auth-controls {
     display: flex;
     gap: 8px;
-    margin-right: 16px;
-}
-
-.auth-btn {
-    padding: 8px 16px;
-    font-size: 14px;
-    font-weight: 500;
-    border-radius: 6px;
-    transition: all 0.2s;
-}
-
-.auth-btn:hover {
-    opacity: 0.9;
 }

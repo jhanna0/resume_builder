@@ -2,30 +2,26 @@
 
 :root {
     /* Colors */
-    --primary: #1e3a5f;
-    /* Deep professional blue */
-    --primary-dark: #162b47;
-    /* Dark navy */
-    --secondary: #3a6ea5;
-    /* Muted blue */
-    --accent: #1b4d7a;
-    /* Darker blue for accents */
-    --accent-light: #a3c4e8;
-    /* Softer light blue */
-    --danger: #c53030;
-    /* Muted deep red */
-    --danger-light: #f5b5b5;
-    /* Softer light red */
+    --primary: #1d56c9;
+    --primary-hover: #1642a3;
+    --primary-light: #e8edf7;
+    --primary-focus: rgba(29, 86, 201, 0.1);
 
-    /* Neutral Colors - Cool professional tones */
+    --danger: #dc2626;
+    --danger-light: #fee2e2;
+    --danger-hover: #b91c1c;
+
+    /* Neutral Colors - Clean professional tones */
     --neutral-50: #ffffff;
     --neutral-100: #f8f9fa;
-    --neutral-200: #e9ecef;
-    --neutral-300: #dee2e6;
-    --neutral-600: #495057;
-    --neutral-700: #343a40;
-    --neutral-800: #212529;
-
+    --neutral-200: #e5e7eb;
+    --neutral-300: #d1d5db;
+    --neutral-400: #9ca3af;
+    --neutral-500: #6b7280;
+    --neutral-600: #4b5563;
+    --neutral-700: #374151;
+    --neutral-800: #1f2937;
+    --neutral-900: #111827;
 
     /* Typography */
     --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
@@ -41,9 +37,9 @@
     --space-8: 32px;
 
     /* Shadows */
-    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
-    --shadow-md: 0 2px 4px rgba(0, 0, 0, 0.05);
-    --shadow-lg: 0 4px 6px rgba(0, 0, 0, 0.05);
+    --shadow-sm: none;
+    --shadow-md: none;
+    --shadow-lg: none;
 }
 
 html,
@@ -63,7 +59,7 @@ body {
 
 /* Global button style */
 button {
-    background: var(--secondary);
+    background: var(--primary);
     color: white;
     border: none;
     padding: var(--space-2) var(--space-3);
@@ -74,13 +70,14 @@ button {
     font-weight: 500;
     transition: all 0.2s;
     margin: 0;
-    /* Ensure no default margins */
 }
 
 button:hover {
-    background: linear-gradient(135deg, var(--primary-dark), var(--secondary));
-    /* transform: translateY(-1px); */
-    /* box-shadow: 0 4px 12px rgba(255, 75, 145, 0.2); */
+    background: var(--primary-hover);
+}
+
+button:focus {
+    outline: none;
 }
 
 /* Inputs and Textareas */
@@ -89,7 +86,7 @@ textarea {
     font-family: var(--font-sans);
     font-size: 15px;
     color: var(--neutral-800);
-    border: 1px solid var(--neutral-200);
+    border: 1px solid var(--neutral-300);
     border-radius: 6px;
     padding: var(--space-3);
     transition: all 0.2s;
@@ -139,8 +136,6 @@ h6 {
     border-radius: 12px;
     width: 80%;
     max-width: 400px;
-    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2),
-        0 0 0 1px rgba(0, 0, 0, 0.1);
     animation: modalSlideIn 0.3s ease-out;
 }
 
@@ -224,7 +219,7 @@ h6 {
     transform: translateX(-50%);
     width: 40px;
     height: 3px;
-    background: linear-gradient(to right, var(--primary), var(--secondary));
+    background: var(--primary);
     border-radius: 3px;
 }
 
@@ -242,7 +237,6 @@ h6 {
 
 .auth-form input:focus {
     border-color: var(--primary);
-    box-shadow: 0 0 0 3px rgba(30, 58, 95, 0.1);
     outline: none;
 }
 
@@ -250,7 +244,7 @@ h6 {
     width: 100%;
     padding: 16px;
     margin-top: 8px;
-    background: linear-gradient(135deg, var(--primary), var(--secondary));
+    background: var(--primary);
     color: white;
     border: none;
     border-radius: 8px;
@@ -258,17 +252,14 @@ h6 {
     font-weight: 600;
     font-size: 16px;
     transition: all 0.3s ease;
-    box-shadow: 0 4px 12px rgba(30, 58, 95, 0.2);
 }
 
 .auth-form button:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 6px 16px rgba(30, 58, 95, 0.3);
+    background: var(--primary-hover);
 }
 
 .auth-form button:active {
     transform: translateY(0);
-    box-shadow: 0 2px 8px rgba(30, 58, 95, 0.2);
 }
 
 .error-message {
@@ -362,7 +353,7 @@ h6 {
     transform: translateX(-50%);
     width: 60px;
     height: 3px;
-    background: linear-gradient(to right, var(--primary), var(--secondary));
+    background: var(--primary);
     border-radius: 3px;
 }
 
@@ -392,12 +383,11 @@ h6 {
 }
 
 .intro-tip {
-    background: linear-gradient(135deg, var(--accent-light), var(--neutral-100));
-    border: 1px solid var(--neutral-300);
+    background: var(--neutral-50);
+    border: 1px solid var(--neutral-200);
     border-radius: 12px;
     padding: 24px;
     margin: 32px 0;
-    box-shadow: var(--shadow-md);
     position: relative;
 }
 
@@ -435,21 +425,18 @@ h6 {
     font-size: 16px;
     font-weight: 600;
     text-align: center;
-    background: linear-gradient(135deg, var(--primary), var(--secondary));
+    background: var(--primary);
     color: white;
     border: none;
     border-radius: 8px;
     cursor: pointer;
     transition: all 0.3s ease;
-    box-shadow: 0 4px 12px rgba(30, 58, 95, 0.2);
 }
 
 .get-started-btn:hover {
-    /* transform: translateY(-2px); */
-    box-shadow: 0 6px 16px rgba(30, 58, 95, 0.3);
+    background: var(--primary-hover);
 }
 
 .get-started-btn:active {
     transform: translateY(0);
-    box-shadow: 0 2px 8px rgba(30, 58, 95, 0.2);
 }

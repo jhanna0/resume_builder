@@ -65,19 +65,21 @@
     font-size: 1.25rem;
     color: var(--neutral-800);
     border-bottom: 1px solid var(--neutral-200);
-    background: white;
+    background: var(--neutral-50);
     position: sticky;
     top: 0;
     z-index: 10;
     height: calc(60px + var(--space-6));
     display: flex;
     align-items: center;
+    font-weight: 500;
+    line-height: 1;
 }
 
 /* Personal Info Section */
 .personal-info {
     padding: var(--space-4);
-    background: white;
+    background: var(--neutral-50);
     border-bottom: 1px solid var(--neutral-200);
 }
 
@@ -118,7 +120,6 @@ input:focus,
 textarea:focus {
     border-color: var(--primary);
     outline: none;
-    /* box-shadow: 0 0 0 2px var(--accent-light); */
 }
 
 textarea {
@@ -131,7 +132,7 @@ textarea {
 /* Jobs Section */
 .jobs-section {
     padding: var(--space-4);
-    background: white;
+    background: var(--neutral-50);
     border-bottom: 1px solid var(--neutral-200);
 }
 
@@ -164,7 +165,6 @@ textarea {
 
 .job:hover {
     border-color: var(--neutral-300);
-    box-shadow: var(--shadow-md);
 }
 
 .job:last-child {
@@ -402,7 +402,7 @@ textarea {
 .sections-section {
     margin-bottom: var(--space-3);
     padding: var(--space-4);
-    background: white;
+    background: var(--neutral-50);
     border-bottom: 1px solid var(--neutral-200);
 }
 
@@ -421,7 +421,7 @@ textarea {
 }
 
 #addSectionBtn:hover {
-    background: var(--primary-dark);
+    background: var(--primary-hover);
 }
 
 .section {
@@ -434,7 +434,6 @@ textarea {
 
 .section:hover {
     border-color: var(--neutral-300);
-    box-shadow: var(--shadow-md);
 }
 
 .section-header {
@@ -444,7 +443,7 @@ textarea {
     gap: var(--space-2);
     padding: var(--space-3);
     border-bottom: 1px solid var(--neutral-200);
-    background: white;
+    background: var(--neutral-50);
     border-radius: 6px 6px 0 0;
 }
 
