@@ -18,8 +18,7 @@
 <body>
     <!-- Sidebar -->
     <div id="sidebar">
-        <div class="sidebar-resize-wrapper"></div>
-        <h2>Resume Details</h2>
+        <h2>Resume Details <span class="resize-handle" title="Drag to resize">↔</span></h2>
 
         <div class="personal-info">
             <div class="form-group">
@@ -40,8 +39,7 @@
             </div>
         </div>
 
-        <!-- get rid of this and replace with section name -->
-        <h2>Sections</h2>
+        <h2>Sections <span class="resize-handle" title="Drag to resize">↔</span></h2>
         <div class="sections-section">
             <button id="addSectionBtn" onclick="addSection()">Add Section</button>
             <div id="sectionsContainer"></div>
@@ -116,42 +114,6 @@
                 <input type="password" id="signupPassword" placeholder="Password" required>
                 <button onclick="signup()">Sign Up</button>
                 <p class="error-message" id="signupError"></p>
-            </div>
-        </div>
-    </div>
-
-    <!-- Intro Modal -->
-    <div id="introModal" class="modal">
-        <div class="modal-content intro-modal">
-            <span class="close">&times;</span>
-            <h2>Welcome to thebestresumewebsite</h2>
-            <div class="intro-content">
-                <p>We solve a common problem in resume writing: <strong>how to maintain multiple versions of your resume
-                        without losing valuable experience.</strong></p>
-
-                <h3>How it works:</h3>
-                <ol>
-                    <li>Be so excited about our awesome naming ability</li>
-                    <li>Add all your experience and bullet points</li>
-                    <li>Create different variations of your resume (e.g., "Software Focus", "Teaching Focus")</li>
-                    <li>Select which bullet points to show in each variation</li>
-                    <li>Change your bio for each resume variation</li>
-                </ol>
-
-                <div class="intro-tip">
-                    <h4>Pro Tip:</h4>
-                    <p>When you want to shorten a bullet point, don't delete it! Instead:</p>
-                    <ol>
-                        <li>Click the copy button (⎘) next to the bullet point</li>
-                        <li>Write a shorter version in the new copy</li>
-                        <li>Choose which version to show in each resume variation</li>
-                        <li>Now you don't lose your precise experience when you want to shorten a bullet point</li>
-                        <li><strong>A section/job is only visible if at least one bullet point is visible</strong></li>
-
-                    </ol>
-                </div>
-
-                <button onclick="hideIntroModal()" class="get-started-btn">Got it, let's get started!</button>
             </div>
         </div>
     </div>

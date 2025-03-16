@@ -10,15 +10,13 @@
     position: relative;
 }
 
-/* Move scrollbar away from edge to make room for resize handle */
+/* Move scrollbar away from edge */
 #sidebar::-webkit-scrollbar {
     width: 8px;
-    margin-right: 4px;
 }
 
 #sidebar::-webkit-scrollbar-track {
     background: var(--neutral-50);
-    margin-right: 4px;
 }
 
 #sidebar::-webkit-scrollbar-thumb {
@@ -28,34 +26,6 @@
 
 #sidebar::-webkit-scrollbar-thumb:hover {
     background: var(--neutral-400);
-}
-
-/* Create a wrapper for resize functionality */
-.sidebar-resize-wrapper {
-    position: absolute;
-    top: 0;
-    right: 0;
-    width: 12px;
-    height: 100%;
-    cursor: col-resize;
-    z-index: 20;
-    /* Ensure it's above sticky headers */
-}
-
-/* Resize handle visual indicator */
-.sidebar-resize-wrapper::after {
-    content: '';
-    position: absolute;
-    top: 0;
-    right: 0;
-    width: 4px;
-    height: 100%;
-    background: transparent;
-    transition: background 0.2s;
-}
-
-.sidebar-resize-wrapper:hover::after {
-    background: var(--neutral-200);
 }
 
 /* Header Section */
@@ -72,8 +42,30 @@
     height: calc(60px + var(--space-6));
     display: flex;
     align-items: center;
+    justify-content: space-between;
     font-weight: 500;
     line-height: 1;
+}
+
+/* Resize Handle */
+.resize-handle {
+    cursor: col-resize;
+    color: var(--neutral-400);
+    font-size: 1rem;
+    padding: 0 var(--space-2);
+    user-select: none;
+    transition: color 0.2s;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    border-radius: 4px;
+}
+
+.resize-handle:hover {
+    color: var(--neutral-600);
+    background: var(--neutral-100);
 }
 
 /* Personal Info Section */

@@ -36,39 +36,6 @@ let state = {
 let hasUnsavedChanges = false;
 let currentSpacing = 'normal';
 
-// Intro Modal
-const introModal = document.getElementById('introModal');
-const introCloseBtn = introModal.querySelector('.close');
-
-// Show intro modal if it's the user's first time
-function showIntroModalIfFirstTime() {
-    if (localStorage.getItem('hasSeenIntro')) {
-        introModal.style.display = 'block';
-    }
-}
-
-// Hide intro modal and mark as seen
-function hideIntroModal() {
-    introModal.style.display = 'none';
-    localStorage.setItem('hasSeenIntro', 'true');
-}
-
-// Close intro modal when clicking the close button
-introCloseBtn.onclick = hideIntroModal;
-
-// Close intro modal when clicking outside
-window.addEventListener('click', function (event) {
-    if (event.target === introModal) {
-        hideIntroModal();
-    }
-});
-
-// Make hideIntroModal available globally
-window.hideIntroModal = hideIntroModal;
-
-// Show intro modal on first visit (call this after DOM is loaded)
-document.addEventListener('DOMContentLoaded', showIntroModalIfFirstTime);
-
 // Auth Modal
 const authModal = document.getElementById('authModal');
 const closeBtn = document.querySelector('.close');
@@ -1266,7 +1233,7 @@ function formatDate(dateStr) {
 
 function initSidebarResize() {
     const sidebar = document.getElementById('sidebar');
-    const resizeHandle = document.querySelector('.sidebar-resize-wrapper');
+    const resizeHandles = document.querySelectorAll('.resize-handle');
     let isResizing = false;
     let startX;
     let startWidth;
@@ -1289,14 +1256,17 @@ function initSidebarResize() {
         autoResizeAllTextareas(sidebar);
     }, 16); // ~60fps
 
-    resizeHandle.addEventListener('mousedown', function (e) {
-        isResizing = true;
-        startX = e.pageX;
-        startWidth = sidebar.offsetWidth;
-        e.preventDefault(); // Prevent text selection
+    // Add event listeners to all resize handles
+    resizeHandles.forEach(handle => {
+        handle.addEventListener('mousedown', function (e) {
+            isResizing = true;
+            startX = e.pageX;
+            startWidth = sidebar.offsetWidth;
+            e.preventDefault(); // Prevent text selection
 
-        // Add resize class to improve performance during resize
-        sidebar.classList.add('resizing');
+            // Add resize class to improve performance during resize
+            sidebar.classList.add('resizing');
+        });
     });
 
     document.addEventListener('mousemove', function (e) {
@@ -1477,26 +1447,32 @@ function createDefaultState() {
         {
             id: generateId(),
             job_id: defaultJobId,
-            content: "✨ Create different variations of your resume by showing/hiding bullet points - perfect for tailoring to different jobs",
+            content: "💡 Click the + button in the toolbar to create a new variation (e.g., 'Software Focus')",
             order_index: 0
         },
         {
             id: generateId(),
             job_id: defaultJobId,
-            content: "⚡ Pro Tip: When shortening a bullet point, use the copy button (⎘) to create a shorter version instead of deleting the original",
+            content: "✨ Don't forget to save your work! Click 'Save Resume' in the toolbar to keep your changes",
             order_index: 1
         },
         {
             id: generateId(),
             job_id: defaultJobId,
-            content: "🎨 Each resume variation can have its own bio and styling - click the theme selector above to try different looks",
+            content: "🎨 Try different themes above to find the perfect look for each job application",
             order_index: 2
         },
         {
             id: generateId(),
             job_id: defaultJobId,
-            content: "📌 Pro Tip: Click any item in the preview (right side) to jump to where you can edit it",
+            content: "📌 Click any item in the resume preview to jump to where you can edit it",
             order_index: 3
+        },
+        {
+            id: generateId(),
+            job_id: defaultJobId,
+            content: "⚡ Never lose your experience again! Use the copy button (⎘) on bullet points to create shorter versions instead of deleting them",
+            order_index: 4
         }
     ];
 
@@ -1504,9 +1480,9 @@ function createDefaultState() {
     const defaultVariation = {
         id: defaultVariationId,
         name: 'Default',
-        bio: 'You can have a different bio for each variation of your resume',
+        bio: 'Create multiple versions of your resume without losing any experience. Perfect for tailoring to different jobs or industries.',
         theme: 'default',
-        spacing: 'normal',
+        spacing: 'relaxed',
         bulletPoints: bulletPoints.map(bp => ({
             bullet_point_id: bp.id,
             is_visible: true  // Make all tutorial bullets visible by default
