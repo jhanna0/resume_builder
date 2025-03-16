@@ -1644,8 +1644,8 @@ function createDefaultState() {
         jobs: [{
             id: defaultJobId,
             section_id: defaultSectionId,
-            title: "Welcome to Your Resume Builder! 👋",
-            company: "Here's how to use this tool",
+            title: "Welcome to Your Resume Builder!",
+            company: "👋",
             start_date: "",
             end_date: "",
             order_index: 0
