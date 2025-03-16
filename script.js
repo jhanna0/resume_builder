@@ -89,17 +89,18 @@ function createNewVariation() {
     const variationId = generateId();
     const currentVar = state.variations[state.currentVariation];
 
-    // Clone current variation's structure and visibility states
+    // Create new variation with only the necessary data
     state.variations[variationId] = {
         id: variationId,
         name: name,
         bio: currentVar?.bio || '',
         theme: currentVar?.theme || 'default',
         spacing: currentVar?.spacing || 'normal',
-        bulletPoints: currentVar ? currentVar.bulletPoints.map(bp => ({
+        // Only copy bullet point visibility settings
+        bulletPoints: currentVar?.bulletPoints?.map(bp => ({
             bullet_point_id: bp.bullet_point_id,
             is_visible: bp.is_visible
-        })) : []
+        })) || []
     };
 
     // Add to dropdown
@@ -333,6 +334,7 @@ function addJob(jobData = null, skipStateUpdate = false, targetSectionId = null)
     // Set job details
     const titleInput = jobDiv.querySelector('.job-title');
     titleInput.value = job.title;
+    titleInput.placeholder = state.placeholders?.jobTips?.title || 'Position or Role';
     titleInput.addEventListener('input', () => {
         const existingJob = state.jobs.find(j => j.id === jobId);
         if (existingJob) {
@@ -344,6 +346,7 @@ function addJob(jobData = null, skipStateUpdate = false, targetSectionId = null)
     // Set company
     const companyInput = jobDiv.querySelector('.job-company');
     companyInput.value = job.company || '';
+    companyInput.placeholder = state.placeholders?.jobTips?.company || 'Company or Organization Name';
     companyInput.addEventListener('input', () => {
         const existingJob = state.jobs.find(j => j.id === jobId);
         if (existingJob) {
@@ -407,10 +410,13 @@ function addJob(jobData = null, skipStateUpdate = false, targetSectionId = null)
             if (!variation.bulletPoints) {
                 variation.bulletPoints = [];
             }
-            variation.bulletPoints.push({
-                bullet_point_id: bulletId,
-                is_visible: true
-            });
+            // Only set visible in current variation and prevent duplicates
+            if (!variation.bulletPoints.some(bp => bp.bullet_point_id === bulletId)) {
+                variation.bulletPoints.push({
+                    bullet_point_id: bulletId,
+                    is_visible: true  // New bullets are always visible in the current variation
+                });
+            }
         }
 
         // Update the resume preview
@@ -477,11 +483,13 @@ function addBulletPoint(containerOrButton, bulletData = null, skipStateUpdate = 
             if (!variation.bulletPoints) {
                 variation.bulletPoints = [];
             }
-            // Only set visible in current variation
-            variation.bulletPoints.push({
-                bullet_point_id: bulletId,
-                is_visible: variationId === state.currentVariation
-            });
+            // Only set visible in current variation and prevent duplicates
+            if (!variation.bulletPoints.some(bp => bp.bullet_point_id === bulletId)) {
+                variation.bulletPoints.push({
+                    bullet_point_id: bulletId,
+                    is_visible: variationId === state.currentVariation
+                });
+            }
         });
     }
 
@@ -1753,6 +1761,9 @@ async function loadResume() {
         const data = await response.json();
         console.log('Loaded data:', data, state.userId);
 
+        // Store current placeholders
+        const currentPlaceholders = state.placeholders;
+
         // Update state with loaded data
         state.full_name = data.full_name || '';
         state.contact_info = data.contact_info || '';
@@ -1760,6 +1771,9 @@ async function loadResume() {
         state.jobs = data.jobs || [];
         state.bulletPoints = data.bulletPoints || [];
         state.variations = data.variations || {};
+
+        // Restore placeholders
+        state.placeholders = currentPlaceholders || createDefaultState().placeholders;
 
         // Set current variation to first one if not set or if current variation doesn't exist
         if (!state.currentVariation || !state.variations[state.currentVariation]) {
@@ -1884,7 +1898,7 @@ function deleteJob(button) {
     const jobDiv = button.closest('.job');
     const jobId = jobDiv.dataset.jobId;
 
-    if (!confirm("WARNING: This will delete the job and all its bullet points permanently. Are you sure?")) {
+    if (!confirm("WARNING: This will delete the job and all its bullet points permanently, for all resume variations. If you want to hide the job, uncheck all the bullet points instead. Are you sure?")) {
         return;
     }
 
@@ -1917,43 +1931,6 @@ function deleteJob(button) {
     updateAllButtonStates();
 
     updateResume();
-}
-
-function deleteBulletPoint(button) {
-    const bulletDiv = button.closest('.bullet-point');
-    const bulletId = bulletDiv.dataset.bulletId;
-
-    if (!confirm("WARNING: This will delete this bullet point permanently. Are you sure?")) {
-        return;
-    }
-
-    // Remove bullet point from state
-    const bulletIndex = state.bulletPoints.findIndex(bp => bp.id === bulletId);
-    if (bulletIndex > -1) {
-        state.bulletPoints.splice(bulletIndex, 1);
-
-        // Remove this bullet point from all variations' bulletPoints arrays
-        Object.values(state.variations).forEach(variation => {
-            variation.bulletPoints = variation.bulletPoints.filter(
-                bpv => bpv.bullet_point_id !== bulletId
-            );
-        });
-    }
-
-    // Remove from UI
-    bulletDiv.remove();
-
-    // Update all button states
-    updateAllButtonStates();
-
-    updateResume();
-}
-
-function setupJobEventListeners(jobDiv) {
-    const deleteButton = jobDiv.querySelector('.delete-job');
-    if (deleteButton) {
-        deleteButton.addEventListener('click', deleteJob);
-    }
 }
 
 function markUnsavedChanges() {
@@ -2274,7 +2251,7 @@ function deleteSection(button) {
     const sectionDiv = button.closest('.section');
     const sectionId = sectionDiv.dataset.sectionId;
 
-    if (!confirm("WARNING: This will delete the section and all its jobs permanently. Are you sure?")) {
+    if (!confirm("WARNING: This will delete the section and all its jobs permanently, for all resume variations. If you want to hide the section, uncheck all the job bullet points instead. Are you sure?")) {
         return;
     }
 

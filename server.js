@@ -16,7 +16,7 @@ const PORT = process.env.PORT || 3000;
 app.use(express.json());
 app.use(express.static(__dirname));
 
-async function createDefaultVariation(userId) {
+async function createDefaultVariation(userId, defaultVariationUuid, defaultSectionUuid) {
     // Get user's ID from UUID
     const userResult = await pool.query('SELECT id FROM users WHERE uuid = $1', [userId]);
     if (userResult.rows.length === 0) {
@@ -24,7 +24,6 @@ async function createDefaultVariation(userId) {
     }
 
     const userIdNum = userResult.rows[0].id;
-    const defaultVariationUuid = uuidv4();
 
     // Create default variation
     const newVariationResult = await pool.query(
@@ -35,7 +34,6 @@ async function createDefaultVariation(userId) {
     );
 
     // Create a default "Experience" section
-    const defaultSectionUuid = uuidv4();
     await pool.query(
         `INSERT INTO sections (uuid, user_id, name, order_index)
          VALUES ($1, $2, $3, $4)`,
@@ -43,6 +41,186 @@ async function createDefaultVariation(userId) {
     );
 
     return newVariationResult.rows[0];
+}
+
+async function updateUserInfo(client, userId, fullName, contactInfo) {
+    if (fullName || contactInfo) {
+        await client.query(
+            `UPDATE users 
+             SET full_name = COALESCE(NULLIF($1, ''), full_name),
+                 contact_info = COALESCE(NULLIF($2, ''), contact_info)
+             WHERE id = $3`,
+            [fullName, contactInfo, userId]
+        );
+    }
+}
+
+async function createNewVariation(client, userId, variation) {
+    const variationResult = await client.query(
+        `INSERT INTO resume_variations (uuid, user_id, name, bio, theme, spacing, is_default)
+         VALUES ($1, $2, $3, $4, $5, $6, false)
+         RETURNING id`,
+        [variation.uuid, userId, variation.name,
+        variation.bio || '', variation.theme || 'default',
+        variation.spacing || 'normal']
+    );
+    return variationResult.rows[0].id;
+}
+
+async function getExistingVariationIds(client, userId, currentVariationId) {
+    const existingVariationsResult = await client.query(
+        `SELECT id FROM resume_variations WHERE user_id = $1 AND id != $2`,
+        [userId, currentVariationId]
+    );
+    return existingVariationsResult.rows.map(row => row.id);
+}
+
+async function createSection(client, userId, section) {
+    const newSectionResult = await client.query(
+        `INSERT INTO sections (uuid, user_id, name, order_index)
+         VALUES ($1, $2, $3, $4)
+         ON CONFLICT (uuid) 
+         DO UPDATE SET name = $3, order_index = $4
+         RETURNING id`,
+        [section.id, userId, section.name, section.order_index]
+    );
+    return newSectionResult.rows[0].id;
+}
+
+async function createJob(client, sectionId, userId, job) {
+    const jobResult = await client.query(
+        `INSERT INTO jobs (uuid, section_id, user_id, title, company, start_date, end_date, order_index)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+         ON CONFLICT (uuid) 
+         DO UPDATE SET section_id = $2, title = $4, company = $5, 
+                      start_date = $6, end_date = $7, order_index = $8
+         RETURNING id`,
+        [job.id, sectionId, userId, job.title, job.company,
+        job.start_date, job.end_date, job.order_index]
+    );
+    return jobResult.rows[0].id;
+}
+
+async function createBulletPoint(client, jobId, userId, bullet) {
+    const bulletResult = await client.query(
+        `INSERT INTO bullet_points (uuid, job_id, user_id, content, order_index)
+         VALUES ($1, $2, $3, $4, $5)
+         ON CONFLICT (uuid) 
+         DO UPDATE SET job_id = $2, content = $4, order_index = $5
+         RETURNING id`,
+        [bullet.id, jobId, userId, bullet.content, bullet.order_index]
+    );
+    return bulletResult.rows[0].id;
+}
+
+async function setBulletPointVisibility(client, variationId, bulletId, userId, isVisible) {
+    await client.query(
+        `INSERT INTO bullet_point_visibility (variation_id, bullet_point_id, user_id, is_visible)
+         VALUES ($1, $2, $3, $4)`,
+        [variationId, bulletId, userId, isVisible]
+    );
+}
+
+async function setBulletPointVisibilityForExistingVariations(client, bulletId, userId, existingVariationIds, currentVariationId) {
+    if (existingVariationIds.length > 0) {
+        await client.query(
+            `INSERT INTO bullet_point_visibility (variation_id, bullet_point_id, user_id, is_visible)
+             SELECT v.id, $1, $2, false
+             FROM UNNEST($3::int[]) AS v(id)
+             WHERE v.id != $4`,
+            [bulletId, userId, existingVariationIds, currentVariationId]
+        );
+    }
+}
+
+async function processSection(client, userId, section, existingVariation, variationId, existingVariationIds, variation) {
+    console.log('\n=== Processing Section ===');
+    console.log('Section:', section);
+    console.log('Variation:', variation);
+    console.log('Existing Variation:', existingVariation);
+
+    // Always create/update the section
+    console.log('Creating/updating section...');
+    const newSectionId = await createSection(client, userId, section);
+    const sectionJobs = existingVariation.jobs.filter(j => j.section_id === section.id);
+    console.log('Section jobs:', sectionJobs);
+
+    for (const job of sectionJobs) {
+        console.log('\n--- Processing Job ---');
+        console.log('Job:', job);
+        const jobId = await createJob(client, newSectionId, userId, job);
+        const jobBullets = existingVariation.bulletPoints.filter(bp => bp.job_id === job.id);
+        console.log('Job bullets:', jobBullets);
+
+        for (const bullet of jobBullets) {
+            console.log('\n*** Processing Bullet ***');
+            console.log('Bullet:', bullet);
+            const bulletId = await createBulletPoint(client, jobId, userId, bullet);
+            console.log('Created/updated bullet with ID:', bulletId);
+        }
+    }
+}
+
+async function processBulletPoints(client, variationId, userId, variation, existingVariation) {
+    console.log('\n=== Processing Bullet Points ===');
+    console.log('Variation:', variation);
+    console.log('Existing Variation:', existingVariation);
+
+    if (variation.bulletPoints) {
+        for (const bp of variation.bulletPoints) {
+            console.log('\n--- Processing Bullet Point ---');
+            console.log('Bullet Point:', bp);
+
+            const bulletResult = await client.query(
+                `SELECT id FROM bullet_points WHERE uuid = $1`,
+                [bp.bullet_point_id]
+            );
+
+            if (bulletResult.rows.length > 0) {
+                console.log('Found bullet point in database:', bulletResult.rows[0]);
+                await client.query(
+                    `INSERT INTO bullet_point_visibility (variation_id, bullet_point_id, user_id, is_visible)
+                     VALUES ($1, $2, $3, $4)
+                     ON CONFLICT (variation_id, bullet_point_id) 
+                     DO UPDATE SET is_visible = $4`,
+                    [variationId, bulletResult.rows[0].id, userId, bp.is_visible]
+                );
+                console.log('Updated visibility to:', bp.is_visible);
+            } else {
+                console.log('Bullet point not found in database:', bp.bullet_point_id);
+            }
+        }
+    } else {
+        console.log('No bullet points to process');
+    }
+}
+
+async function processVariation(client, userId, variation, existingVariation) {
+    console.log('\n=== Processing Variation ===');
+    console.log('Variation:', variation);
+    console.log('Existing Variation:', existingVariation);
+
+    // Ensure we have a UUID for the variation
+    if (!variation.uuid) {
+        console.error('No UUID provided for variation:', variation);
+        throw new Error('Variation UUID is required');
+    }
+
+    const variationId = await createNewVariation(client, userId, variation);
+    console.log('Created new variation with ID:', variationId);
+
+    const existingVariationIds = await getExistingVariationIds(client, userId, variationId);
+    console.log('Existing variation IDs:', existingVariationIds);
+
+    // First create all sections, jobs, and bullet points
+    if (existingVariation.sections) {
+        for (const section of existingVariation.sections) {
+            await processSection(client, userId, section, existingVariation, variationId, existingVariationIds, variation);
+        }
+    }
+
+    // Then process bullet point visibility after all bullet points exist
+    await processBulletPoints(client, variationId, userId, variation, existingVariation);
 }
 
 // User registration
@@ -136,120 +314,13 @@ app.post('/api/login', async (req, res) => {
             await client.query('BEGIN');
 
             try {
-                // Update user's personal info if the existing variation has more complete info
-                if (existingVariation.full_name || existingVariation.contact_info) {
-                    await client.query(
-                        `UPDATE users 
-                         SET full_name = COALESCE(NULLIF($1, ''), full_name),
-                             contact_info = COALESCE(NULLIF($2, ''), contact_info)
-                         WHERE id = $3`,
-                        [existingVariation.full_name, existingVariation.contact_info, user.id]
-                    );
-                }
+                await updateUserInfo(client, user.id, existingVariation.full_name, existingVariation.contact_info);
 
                 // Process each variation from the existing data
                 for (const [variationUuid, variation] of Object.entries(existingVariation.variations)) {
-                    // Create a new variation
-                    const variationResult = await client.query(
-                        `INSERT INTO resume_variations (uuid, user_id, name, bio, theme, spacing, is_default)
-                         VALUES ($1, $2, $3, $4, $5, $6, false)
-                         RETURNING id`,
-                        [uuidv4(), user.id, variation.name,
-                        variation.bio || '', variation.theme || 'default',
-                        variation.spacing || 'normal']
-                    );
-                    const variationId = variationResult.rows[0].id;
-
-                    // Get all existing variations for the user
-                    const existingVariationsResult = await client.query(
-                        `SELECT id FROM resume_variations WHERE user_id = $1 AND id != $2`,
-                        [user.id, variationId]
-                    );
-                    const existingVariationIds = existingVariationsResult.rows.map(row => row.id);
-
-                    // Process each section
-                    for (const section of existingVariation.sections || []) {
-                        // Get the max order_index for existing sections
-                        const maxOrderResult = await client.query(
-                            `SELECT COALESCE(MAX(order_index), -1) as max_order 
-                             FROM sections 
-                             WHERE user_id = $1`,
-                            [user.id]
-                        );
-                        const nextOrderIndex = maxOrderResult.rows[0].max_order + 1;
-
-                        // Create a new section
-                        const newSectionResult = await client.query(
-                            `INSERT INTO sections (uuid, user_id, name, order_index)
-                             VALUES ($1, $2, $3, $4)
-                             RETURNING id`,
-                            [uuidv4(), user.id, section.name, nextOrderIndex]
-                        );
-                        const newSectionId = newSectionResult.rows[0].id;
-
-                        // Get max order_index for jobs in this section
-                        const maxJobOrderResult = await client.query(
-                            `SELECT COALESCE(MAX(order_index), -1) as max_order 
-                             FROM jobs 
-                             WHERE section_id = $1`,
-                            [newSectionId]
-                        );
-                        let nextJobOrderIndex = maxJobOrderResult.rows[0].max_order + 1;
-
-                        // Insert jobs for this section
-                        const sectionJobs = existingVariation.jobs.filter(j => j.section_id === section.id);
-                        for (const job of sectionJobs) {
-                            const jobResult = await client.query(
-                                `INSERT INTO jobs (uuid, section_id, user_id, title, company, start_date, end_date, order_index)
-                                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-                                 RETURNING id`,
-                                [uuidv4(), newSectionId, user.id, job.title, job.company,
-                                job.start_date, job.end_date, nextJobOrderIndex++]
-                            );
-
-                            // Get max order_index for bullet points in this job
-                            const maxBulletOrderResult = await client.query(
-                                `SELECT COALESCE(MAX(order_index), -1) as max_order 
-                                 FROM bullet_points 
-                                 WHERE job_id = $1`,
-                                [jobResult.rows[0].id]
-                            );
-                            let nextBulletOrderIndex = maxBulletOrderResult.rows[0].max_order + 1;
-
-                            // Insert bullet points for this job
-                            const jobBullets = existingVariation.bulletPoints.filter(b => b.job_id === job.id);
-                            for (const bullet of jobBullets) {
-                                const bulletResult = await client.query(
-                                    `INSERT INTO bullet_points (uuid, job_id, user_id, content, order_index)
-                                     VALUES ($1, $2, $3, $4, $5)
-                                     RETURNING id`,
-                                    [uuidv4(), jobResult.rows[0].id, user.id, bullet.content, nextBulletOrderIndex++]
-                                );
-
-                                // Set visibility for this variation
-                                const bulletVisibility = variation.bulletPoints.find(
-                                    bp => bp.bullet_point_id === bullet.id
-                                );
-
-                                await client.query(
-                                    `INSERT INTO bullet_point_visibility (variation_id, bullet_point_id, user_id, is_visible)
-                                     VALUES ($1, $2, $3, $4)`,
-                                    [variationId, bulletResult.rows[0].id, user.id, bulletVisibility?.is_visible ?? true]
-                                );
-
-                                // For all existing variations, set visibility to false for the new bullet points
-                                if (existingVariationIds.length > 0) {
-                                    await client.query(
-                                        `INSERT INTO bullet_point_visibility (variation_id, bullet_point_id, user_id, is_visible)
-                                         SELECT v.id, $1, $2, false
-                                         FROM UNNEST($3::int[]) AS v(id)
-                                         WHERE v.id != $4`,
-                                        [bulletResult.rows[0].id, user.id, existingVariationIds, variationId]
-                                    );
-                                }
-                            }
-                        }
-                    }
+                    // Ensure the variation has the correct UUID
+                    variation.uuid = variationUuid;
+                    await processVariation(client, user.id, variation, existingVariation);
                 }
 
                 await client.query('COMMIT');
@@ -302,7 +373,10 @@ app.get('/api/resume/:userId', async (req, res) => {
 
         // If no variations exist, create a default one
         if (variationsResult.rows.length === 0) {
-            const defaultVariation = await createDefaultVariation(userId);
+            // Generate default UUIDs
+            const defaultVariationUuid = uuidv4();
+            const defaultSectionUuid = uuidv4();
+            const defaultVariation = await createDefaultVariation(userId, defaultVariationUuid, defaultSectionUuid);
             variationsResult.rows = [defaultVariation];
         }
 
