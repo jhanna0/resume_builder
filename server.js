@@ -758,8 +758,8 @@ app.post('/api/generate-pdf', async (req, res) => {
             throw new Error('No HTML content received');
         }
 
-        // Launch Puppeteer with debugging
-        browser = await puppeteer.launch({
+        const browser = await puppeteer.launch({
+            executablePath: '/usr/bin/chromium',  // Use system Chromium
             headless: 'new',
             args: [
                 '--no-sandbox',
