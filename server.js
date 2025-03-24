@@ -759,7 +759,7 @@ app.post('/api/generate-pdf', async (req, res) => {
         }
 
         const browser = await puppeteer.launch({
-            executablePath: '/usr/bin/chromium',  // Use system Chromium
+            executablePath: '/snap/bin/chromium',  // Use system Chromium
             headless: 'new',
             args: [
                 '--no-sandbox',
