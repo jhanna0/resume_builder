@@ -1637,7 +1637,7 @@ function createDefaultState() {
         {
             id: generateId(),
             job_id: defaultJobId,
-            content: "🎯 Create variations like 'Software Focus' or 'Management Focus' to tailor your resume for different roles",
+            content: "🎯 Press [+] to create different variations like 'Software Focus' or 'Management Focus' to tailor your resume for different roles",
             order_index: 1
         },
         {
